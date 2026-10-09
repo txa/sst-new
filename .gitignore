@@ -1,0 +1,7 @@
+# Agda interface files and build output
+*.agdai
+_build/
+MAlonzo/
+# editor / OS
+.DS_Store
+*~
