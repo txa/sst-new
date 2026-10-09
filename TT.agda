@@ -75,6 +75,8 @@ data El where
     p : Wk (Γ ▷ A) Γ
 
     ε : Ty Γ
+    -- ext A x δ extends A by an assumption  x (δ args):  the thinning
+    -- δ : Thin A B gives the arguments of x, selected from the entries of A
     ext : (A : Ty Γ) → Var Γ B → Thin A B → Ty Γ
 
     zero : Var (Γ ▷ A) (wkTy A p)
