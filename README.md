@@ -18,6 +18,9 @@ thinning, and it is stored as data.
 | `SSTk.agda` | `SST : ℕ → Con`, defined by structural recursion following Section 3 of Altenkirch, Capriotti, Kraus, *Extending homotopy type theory with strict equality* (2016). |
 | `Sem.agda` | The interpretation into Agda's `Set`. K-free, parameterised by `pair-irr` (UIP for the semantic types), which is used in two lemmas. |
 | `SemK.agda` | The only file using K: proves `pair-irr` and instantiates `Sem`, with tests. |
+| `HIIT.agda` | The same type theory as a HIIT signature (weakening and composition are constructors, their laws path constructors), with its standard model (all `refl`, K-free). |
+| `HIITtoIR.agda` | `TT.agda` is a model of the HIIT signature: the map HIIT → IR, K-free. |
+| `HIITConj.agda` | The coherence conjecture: the map HIIT → IR is an equivalence. The initial HIIT is postulated here (only here). |
 | `plan.agda` | The original plan: semi-simplicial types up to level 4, written out. |
 
 ## Other directories
@@ -34,5 +37,8 @@ thinning, and it is stored as data.
 The syntax and the construction of `SST n` are free of K. The interpretation
 still needs UIP for the semantic types (`pair-irr`), i.e. coherence of the
 interpretation of composition; this is where the open problem remains.
+Equivalently (`HIITConj.agda`): the HIIT version has a trivial K-free
+interpretation, and the question is whether the map from the HIIT to the
+inductive-recursive syntax is an equivalence.
 
 Checked with Agda 2.6.5, no libraries needed.
