@@ -29,6 +29,9 @@ thinning, and it is stored as data.
 - `experiments/`:
   - `hit/`: Kovács' optimised syntax as an untruncated HIT, and its standard model (all `refl`, K-free).
   - `freecomp/`: composition as a constructor, with proof-relevant derivations.
+  - `ssc/`: single-substitution style (Kaposi–Xie): thinnings as words of single steps, no composition and no `ass`, std model all `refl`; but the exchange law is needed to type SST level 2 and has critical triples (hexagons).
+  - `winf/`: Aₙ-structures (non-unital, unbiased) as W(Ass)-algebras in cubical Agda with `--two-level`: planar trees, one cube per tree with strict faces (contract / graft), `BA n` for trees with ≤ n leaves; sanity check: endofunctions under composition.
+  - `stabilised-universe/`: notes (no Agda) on a universe V with `Path(V,1) ≅ V`, built as a limit of iterated bridge types in the nominal model, to get relativity (and a décalage-style display) despite Reboullet's universe discrepancy.
   - `prefix/`: variables pointing to a prefix of the context (blocked on associativity of prefix composition).
 - `archive/`: superseded variants: a Boolean encoding of the equations, `Prop`-based versions, a decidable-equality skeleton, and the original rewriting version.
 

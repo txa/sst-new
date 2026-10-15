@@ -1,0 +1,540 @@
+\documentclass[11pt]{article}
+\usepackage{fontspec}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{fancyvrb}
+\usepackage{booktabs}
+\usepackage{stmaryrd}
+\usepackage[margin=2.7cm]{geometry}
+\usepackage{xcolor}
+\usepackage[colorlinks,linkcolor=black,citecolor=black,urlcolor=blue!60!black]{hyperref}
+
+\setmonofont{JuliaMono}[Scale=0.82]
+\DefineVerbatimEnvironment{agda}{Verbatim}{xleftmargin=1.5em,fontsize=\small}
+\newcommand{\ag}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\repourl}{https://github.com/txa/sst-new}
+\newcommand{\agfile}[1]{\href{\repourl/blob/main/#1}{\ag{#1}}}
+\newcommand{\agdir}[1]{\href{\repourl/tree/main/#1}{\ag{#1/}}}
+
+\newtheorem*{remark}{Remark}
+
+\title{Semi-simplicial types from a type theory of\\ weakenings and thinnings\\[0.5ex]
+\large and why we always meet an obstruction}
+\author{Thorsten Altenkirch}
+\date{Draft, October 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We explain an attempt to define semi-simplicial types (SST) in homotopy type
+theory by first defining a small type theory whose contexts are exactly the
+data of semi-simplicial types, constructing $\mathrm{SST}\,n$ uniformly in that
+syntax, and then interpreting the syntax in the universe. The syntax can be
+defined without any truncation and without K, and the construction of
+$\mathrm{SST}\,n$ goes through. The interpretation does not: it needs
+equations to hold definitionally which only hold propositionally, and
+patching this with transports needs uniqueness of identity proofs for the
+semantic types. Moving the problem into the syntax, by making composition a
+constructor, does not remove it either: it reappears as a coherence problem in
+the syntax. The Agda development accompanying this note is in the repository
+\href{\repourl}{\ag{github.com/txa/sst-new}}.
+\end{abstract}
+
+\section{Why semi-simplicial types?}
+
+Homotopy type theory describes $\infty$-groupoids: every type comes with its
+identity types, and J supplies all their coherences for free. It does not
+(yet) describe higher \emph{categories}, where morphisms need not be
+invertible. The standard way to present an $(\infty,1)$-category is by a
+(semi-)simplicial object of types satisfying Segal and completeness
+conditions, and Capriotti and Kraus showed that this works in a type theory
+where semi-simplicial types are available~\cite{capriotti-kraus}. So if we
+could define the type of semi-simplicial types in HoTT, we could represent
+higher categories internally, including the $(\infty,1)$-category of types
+itself.
+
+A closely related goal is for HoTT to ``eat itself'': to define the syntax of
+HoTT inside HoTT and interpret it in the universe. Shulman's account of this
+problem~\cite{shulman-eat} singles out semi-simplicial types as one of the
+most important open problems on the way, since they are the simplest
+structure that needs an infinite tower of coherences. (The title echoes
+Chapman's \emph{Type theory should eat itself}~\cite{chapman}.)
+
+The question of defining semi-simplicial types in HoTT was raised during the
+special year on Univalent Foundations at the IAS in 2012--13, by Voevodsky
+and others~\cite{ufias-sst}. Voevodsky's proposal of a type system with two
+identity types, one strict and one homotopical~\cite{voevodsky-hts}, makes
+it possible, and this idea was developed into two-level type
+theory~\cite{ack-strict,acks-2ltt}, in which semi-simplicial types can be
+defined. Herbelin gave a construction~\cite{herbelin} which, as he later
+pointed out, relies on uniqueness of identity proofs. Kolomatskaia and
+Shulman define them in displayed type theory~\cite{dtt}. In book HoTT the
+problem remains open.
+
+\section{Semi-simplicial types up to triangles}
+
+A semi-simplicial type up to level 2 consists of
+\begin{align*}
+X_0 &: \mathcal U\\
+X_1 &: X_0 \to X_0 \to \mathcal U\\
+X_2 &: (x_0\,x_1\,x_2 : X_0) \to X_1\,x_0\,x_1 \to X_1\,x_0\,x_2 \to X_1\,x_1\,x_2 \to \mathcal U
+\end{align*}
+Points, edges between points, and triangles filling a boundary of three
+points and three edges. The problem is to define, for a variable $n:\mathbb N$,
+the type of such data up to level $n$. For each numeral $n$ we can write it
+down, but nobody knows how to do it uniformly in $n$ in book HoTT.
+
+Two observations about the example guide everything that follows.
+\begin{enumerate}
+\item Each $X_k$ is a family over a \emph{telescope} of arguments, and each
+  entry of that telescope is an earlier family applied to a \emph{selection}
+  of earlier entries. The edge $x_{02} : X_1\,x_0\,x_2$ selects $x_0$ and
+  $x_2$ from the three points.
+\item The selections have to be compatible. The arguments of $X_1$ are two
+  points, so the selection that picks out $x_{02}$ must also pick out the two
+  points it connects. Selections compose, and at level 2 this composition is
+  used for the first time in a non-trivial way: the boundary of a triangle
+  consists of edges, and the boundary of an edge consists of points.
+\end{enumerate}
+Level 2 is therefore the smallest example in which everything below happens.
+
+\section{A type theory with only weakenings and thinnings}
+
+We describe the data above by a small type theory with five sorts:
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\ag{Con} & contexts & sequences of type families $X_0, X_1, \dots$\\
+\ag{Ty Γ} & types & telescopes (domains of families)\\
+\ag{Var Γ A} & variables & a family in $\Gamma$ over the telescope $A$\\
+\ag{Wk Δ Γ} & weakenings & forgetting the last families of a context\\
+\ag{Thin A B} & thinnings & projections from telescope $A$ to $B$\\
+\bottomrule
+\end{tabular}
+\end{center}
+There are two directions of movement:
+\begin{itemize}
+\item \emph{vertically}, a weakening goes from a longer to a shorter context:
+  one more family is in scope. We only need one step,
+  \ag{p : Wk (Γ ▷ A) Γ}, and no general substitution;
+\item \emph{horizontally}, within a fixed context, a thinning goes from a
+  longer to a shorter telescope by dropping some entries and keeping others.
+\end{itemize}
+The constructors are
+\begin{agda}
+•    : Con
+_▷_  : (Γ : Con) → Ty Γ → Con          -- add a family over a telescope
+ε    : Ty Γ                            -- empty telescope
+ext  : (A : Ty Γ) → Var Γ B → Thin A B → Ty Γ
+                                       -- A extended by an entry  x (δ a)
+zero : Var (Γ ▷ A) (wkTy A p)
+suc  : Var Γ A → Var (Γ ▷ B) (wkTy A p)
+tε   : Thin ε ε
+t-d  : Thin A B → Thin (ext A x δ) B   -- drop the last entry
+t-k  : Thin A B → Thin (ext A x ?) (ext B x δ)   -- keep it
+\end{agda}
+The variables \ag{zero} and \ag{suc} need weakening: \ag{zero} refers to the
+last family of \ag{Γ ▷ A}, whose telescope \ag{A} lives in the shorter context
+\ag{Γ}, so its type is \ag{A} moved along \ag{p}. Weakening is not a
+constructor but an operation, defined by recursion on the syntax, which
+pushes the weakening through types, variables and thinnings:
+\begin{agda}
+wkTy   : Ty Γ → Wk Δ Γ → Ty Δ
+wkVar  : Var Γ A → (w : Wk Δ Γ) → Var Δ (wkTy A w)
+wkThin : Thin A B → (w : Wk Δ Γ) → Thin (wkTy A w) (wkTy B w)
+
+wkTy ε           w = ε
+wkTy (ext A x δ) w = ext (wkTy A w) (wkVar x w) (wkThin δ w)
+wkVar x p          = suc x
+wkThin tε      w   = tε
+wkThin (t-d σ) w   = t-d (wkThin σ w)
+wkThin (t-k σ) w   = t-k (wkThin σ w)
+\end{agda}
+Weakening a telescope only renames the families it refers to (each $x$
+becomes \ag{suc x}); the shape of the telescope and of its thinnings is
+unchanged. For example the edges $E_{ij}$ above have target
+\ag{wkTy A₁ p}: the two-point telescope $A_1$ moved into the context where
+$X_1$ is in scope.
+In the intended interpretation a context is a nested $\Sigma$-type of
+families, a telescope $A$ is a type depending on the context, \ag{ext A x δ}
+is $\Sigma\,(a : A)\,.\,x\,(\delta\,a)$, and a thinning is a projection.
+
+In this language the example reads:
+\begin{agda}
+Γ₀ = • ▷ ε                                        -- X₀
+A₁ = ext (ext ε zero tε) zero (t-d tε)            -- two points
+Γ₁ = Γ₀ ▷ A₁                                      -- X₁
+V₃ = three points (variable suc zero)
+E₀₁ E₀₂ E₁₂ : Thin V₃ (wkTy A₁ p)                 -- the three edges
+A₂ = ext (ext (ext V₃ zero E₀₁) zero (t-d E₀₂)) zero (t-d (t-d E₁₂))
+\end{agda}
+The thinnings $E_{ij}$ select the endpoints of the three edges, for example
+\ag{E₁₂ = t-k (t-k (t-d tε))} drops $x_0$ and keeps $x_1, x_2$.
+
+\paragraph{What is the \ag{?}?}
+If we keep the last entry $x\,(\delta\,b)$ of \ag{ext B x δ} while thinning
+the rest along $\sigma : \ag{Thin}\,A\,B$, the entry of the source must be
+$x$ applied to the composite selection: the index is $\delta\circ\sigma$.
+\begin{agda}
+t-k : (σ : Thin A B) → Thin (ext A x (δ ∘ σ)) (ext B x δ)
+\end{agda}
+This is where composition enters. In \ag{E₁₂}, keeping $x_2$ requires
+$x_2$'s stored selection in $V_3$ (drop $x_0$ and $x_1$) to be the composite
+of the selection in $A_1$ (drop the first point) with the thinning that drops
+$x_0$.
+
+\section{The syntax: induction-recursion}
+
+We want the syntax to be an ordinary inductive definition, \emph{not} a
+quotient. A quotient inductive-inductive type is a set, and its recursor only
+eliminates into sets, whereas we want to interpret into the universe, which is
+not a set. So the syntax must be untruncated: equality of syntax is the
+equality of an inductive type, and it is a theorem (not an axiom) that it is a
+set.
+
+The type of \ag{t-k} mentions \ag{δ ∘ σ}, and the types of \ag{zero} and
+\ag{suc} mention \ag{wkTy}. So composition and weakening have to be defined
+\emph{simultaneously} with the syntax: the syntax is an inductive-inductive-recursive
+definition, in which functions defined by recursion on the types being
+defined occur in the indices of their constructors. (In the code we package
+the sorts as one family \ag{El : U → Set} indexed by codes; this is only a
+convenient way to write the mutual definition in Agda, not a reduction to
+something simpler.)
+
+We should be honest about the status of this. Agda accepts such definitions,
+but they are a feature of Agda whose semantics is not well understood. There
+are established accounts of induction-recursion~\cite{dybjer-ir,dybjer-setzer}
+and of induction-induction~\cite{forsberg-setzer}, but none that we know of
+covers definitions like ours, where recursively defined functions, and in the
+later versions also proofs about them, appear in constructor indices. We use
+it anyway, as a powerful piece of ``magic'' that lets us state and check the
+constructions. The point of the rest of this note is that even with this
+magic we still run into an obstruction.
+
+\paragraph{First attempt: index by the composite.}
+With \ag{t-k} as above, define composition by recursion on the right
+argument:
+\begin{agda}
+δ      ∘ tε    = δ
+δ      ∘ t-d σ = t-d (δ ∘ σ)
+t-d δ  ∘ t-k σ = t-d (δ ∘ σ)
+t-k δ  ∘ t-k σ = t-k (δ ∘ σ)          -- ill-typed!
+\end{agda}
+The left side has type \ag{Thin (ext A x ((δC ∘ δ) ∘ σ)) _}, the right side
+\ag{Thin (ext A x (δC ∘ (δ ∘ σ))) _}. They agree only up to associativity, a
+theorem we prove by induction, so we would have to write
+\ag{subst _ ∘-assoc (t-k (δ ∘ σ))}. The same happens for the identity
+(\ag{t-k id} has index \ag{δ ∘ id}, needing \ag{∘-id}) and for weakening a
+thinning (needing \ag{wkThin (δ ∘ σ) ≡ wkThin δ ∘ wkThin σ}). A \ag{subst}
+along a propositional equation in a definition blocks computation in
+everything that uses it. In addition, pattern matching on \ag{t-k} forces Agda
+to unify an index with \ag{δ ∘ σ}, a defined function (``green slime'', in McBride's terminology).
+
+\paragraph{Second attempt: Fording.}
+Following McBride, we store the equation instead of computing the
+index:\footnote{The name alludes to Henry Ford's slogan that a customer can
+have a car painted any colour, so long as it is black. Instead of restricting
+the index of \ag{t-k} to be \ag{δ ∘ σ}, we allow any index \ag{δ'}, so long as
+it is equal to \ag{δ ∘ σ}. The name is due to Conor McBride, who speaks of
+reformulating an indexed family ``in the Henry Ford tradition''
+\cite[Chapter~6]{mcbride-metaprog}; the encoding of indices by equations is also
+used in~\cite{levitation}. We have not found an earlier written source;
+the phrase may have been used in talks before.}
+\begin{agda}
+t-k : (σ : Thin A B) → δ ∘ σ ≡ δ' → Thin (ext A x δ') (ext B x δ)
+\end{agda}
+Now composition is defined without any transport; the equation is built as
+data:
+\begin{agda}
+t-k δ q ∘ t-k σ e = t-k (δ ∘ σ) (∘-k q e)
+  where ∘-k : ρ ∘ δ ≡ δB → δB ∘ σ ≡ δA → ρ ∘ (δ ∘ σ) ≡ δA
+\end{agda}
+and \ag{∘-k} uses \ag{∘-assoc}, which is proved mutually with \ag{_∘_}.
+Identity and weakening are handled the same way. Closed terms compute: the
+example above is typechecked with all stored equations being \ag{refl}, and
+\ag{id ∘ id ≡ id} holds by \ag{refl} at $A_2$.
+
+\paragraph{The new problem: UIP in the syntax.}
+To prove the laws (associativity, identity) we need a congruence for
+\ag{t-k}:
+\begin{agda}
+t-k-cong : σ ≡ σ' → t-k σ e ≡ t-k σ' e'
+\end{agda}
+where \ag{e} and \ag{e'} are two proofs of the same equation
+\ag{δ ∘ σ ≡ δ'}. This needs them to be equal, i.e.\ uniqueness of identity
+proofs for \ag{Thin}. In Agda this is K (directory \agdir{withK}).
+
+\section{Removing UIP: codes for equality}
+
+The syntax is finitary and first order, so all its sorts have decidable
+equality, and by Hedberg's theorem~\cite{hedberg} they are sets. Rather than going through
+Hedberg we encode equality of thinnings directly, as a type defined by
+recursion (the encode-decode method~\cite{licata-shulman}, \cite[\S 8.1]{hott-book}):
+\begin{agda}
+Code : Thin A C → Thin A' C' → Set
+Code tε          tε          = ⊤
+Code (t-d σ)     (t-d τ)     = Code σ τ
+Code (t-k σ _ _) (t-k τ _ _) = Code σ τ
+Code _           _           = ⊥
+
+t-k : (σ : Thin A B) → CodeV x y → Code (δ ∘ σ) δ'
+    → Thin (ext A x δ') (ext B y δ)
+\end{agda}
+\begin{itemize}
+\item Codes are propositions by a plain induction (\ag{Code-prop}): no K, no
+  Hedberg, no \ag{Prop}.
+\item The kept variable is split into \ag{x} and \ag{y}, related by a code
+  \ag{CodeV x y}, so that no index is repeated and pattern matching works
+  \ag{--without-K}.
+\item Codes can be decoded into equations (\ag{Code-sound}), and the total
+  space of variables is a set (\ag{VarΣ-set}).
+\end{itemize}
+With this, \ag{t-k-cong} holds without K. This achieves the first goal: an
+\emph{untruncated} syntax, defined by induction-recursion, whose sorts are
+provably sets, all \ag{--without-K} (file \agfile{TT.agda}).
+
+\section{Semi-simplicial types in the syntax}
+
+Following Section~3 of~\cite{ack-strict}, we define by structural
+recursion on $k$, simultaneously,
+\begin{itemize}
+\item the context \ag{ctx k} of levels $X_0,\dots,X_{k-1}$,
+\item the $k$-skeleton \ag{SK k n : Ty (ctx k)} of an $(n-1)$-simplex,
+\item its face maps \ag{SK→ k f : Thin (SK k n) (SK k m)} for order preserving
+  embeddings $f$,
+\item their functoriality \ag{α k f g : SK→ k g ∘ SK→ k f ≡ SK→ k (f ⊙ g)}.
+\end{itemize}
+Level $k+1$ only uses level $k$ weakened once, so all types agree
+definitionally. The transport along $\alpha_k$ in the paper becomes the
+equation stored in \ag{t-k}, and the coherence of $\alpha$, for which the
+paper used K, becomes \ag{t-k-cong}, which is now K-free. The result is
+\begin{agda}
+SST : ℕ → Con
+\end{agda}
+defined uniformly in $n$, without K (file \agfile{SSTk.agda}).
+
+\section{The interpretation, and the obstruction}
+
+To finish we need the standard interpretation of the syntax in the universe:
+\begin{agda}
+⟦ Γ ⟧C  : Set₁                         -- nested Σ of families
+⟦ A ⟧T  : ⟦ Γ ⟧C → Set
+⟦ x ⟧V  : (γ : ⟦ Γ ⟧C) → ⟦ A ⟧T γ → Set
+⟦ σ ⟧Th : ⟦ A ⟧T γ → ⟦ B ⟧T γ           -- projections
+
+⟦ ext A x δ ⟧T γ = Σ (⟦ A ⟧T γ) (λ a → ⟦ x ⟧V γ (⟦ δ ⟧Th a))
+\end{agda}
+Then $\ag{⟦ SST n ⟧C}$ would be the type of semi-simplicial types up to level
+$n$.
+
+\paragraph{Where it breaks.}
+Interpreting a kept entry needs the interpretation of the stored equation:
+\begin{agda}
+⟦ t-k σ e ⟧Th (a , v) = ⟦ σ ⟧Th a , subst ⟦ x ⟧V (keq e a) v
+  where keq e a : ⟦ δ' ⟧Th a ≡ ⟦ δ ⟧Th (⟦ σ ⟧Th a)
+\end{agda}
+and \ag{keq} is built from
+\begin{agda}
+⟦∘⟧ : ⟦ δ ∘ σ ⟧Th a ≡ ⟦ δ ⟧Th (⟦ σ ⟧Th a)
+\end{agda}
+which we can only prove by induction: it is a propositional, not a
+definitional, equality. In the case \ag{t-k ∘ t-k} of \ag{⟦∘⟧} itself, the
+element $v$ is transported along two \emph{different} paths, one coming from
+\ag{∘-k q e} and one from composing the two stored equations, and we have to
+show that the results agree. Those paths live in the semantic types
+\ag{⟦ C ⟧T γ}, which are arbitrary types, so we need uniqueness of identity
+proofs for them (the lemma \ag{pair-irr}, equivalent to UIP). Weakening causes
+the same problem: \ag{⟦ wkTy A p ⟧T (γ , X)} is related to \ag{⟦ A ⟧T γ} only
+by a map whose naturality (\ag{unwk-nat}) holds propositionally.
+
+Put differently, the interpretation would go through if the equations
+\[
+\llbracket \delta\circ\sigma\rrbracket = \llbracket\delta\rrbracket\circ\llbracket\sigma\rrbracket
+\qquad\text{and}\qquad
+\llbracket \mathrm{wk}\,A\rrbracket(\gamma,X) = \llbracket A\rrbracket\,\gamma
+\]
+held definitionally. They do hold for closed terms: for every numeral $n$,
+$\llbracket\mathrm{SST}\,n\rrbracket$ computes to the expected iterated
+$\Sigma$-type, and Agda checks this by \ag{refl}. They do not hold for a
+\emph{variable} $n$, and uniformity in $n$ is the whole point.
+
+In Agda the interpretation \agfile{Sem.agda} is K-free except for one module
+parameter, \ag{pair-irr}, which is proved with K in \agfile{SemK.agda}. So we
+still do not have a semantic encoding of SST in HoTT.
+
+\begin{remark}
+In two-level type theory the equations can be taken as \emph{outer}
+(strict) equalities, which satisfy UIP. Read this way, the K-based
+interpretation is essentially the known construction of semi-simplicial types
+in 2LTT~\cite{ack-strict,acks-2ltt}. The open problem is precisely to get
+rid of the outer level.
+\end{remark}
+
+\section{An alternative: composition as a constructor}
+
+The obstruction comes from composition being a defined function whose
+interpretation is only propositionally functorial. We could instead make
+weakening and composition \emph{constructors}, and turn their recursive
+equations into path constructors: a higher inductive-inductive type (file
+\agfile{HIIT.agda}, a variant of Kovács' optimised syntax, see~\cite[Appendix~A]{rosain}).
+\begin{itemize}
+\item The semantic problem disappears. In the standard model composition is
+  function composition, and every path constructor is interpreted by \ag{refl},
+  without K.
+\item The problem moves into the syntax. The keep rule now has to be stated
+  as a path \emph{over} associativity,
+\begin{agda}
+t-k∘t-k : subst (λ d → Thin (ext A x d) _) ass (t-k δ ∘ t-k σ) ≡ t-k (δ ∘ σ)
+\end{agda}
+  so \ag{ass} is a path constructor, and it overlaps with the computation
+  rules. For example, on \ag{(ρ ∘ δ) ∘ tε} we can go via \ag{ass} or via
+  \ag{∘tε}; the two paths form a loop that nothing fills. These critical pairs
+  would need 2-dimensional path constructors (the pentagon), which create
+  critical pairs of their own, and so on.
+\end{itemize}
+The interpretation of the HIIT into the inductive-recursive syntax gives a map
+HIIT $\to$ IR (file \agfile{HIITtoIR.agda}). The hope is that this map is an
+equivalence (\agfile{HIITConj.agda}): then the HIIT is a set, and the IR syntax
+inherits the K-free standard model. We have not carried this out. A sketch
+suggests that, as stated, it fails under univalence: in a model where
+\ag{Thin A B} carries an extra circle component and \ag{ass} is interpreted
+with a twist by \ag{loop}, the loop above is sent to \ag{loop}, which is not
+\ag{refl}.
+
+\section{The obstruction is always there}
+
+The attempts can be summarised as follows.
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+presentation & syntax & standard model\\
+\midrule
+IR, index by $\delta\circ\sigma$ & transports block computation & ---\\
+IR, Forded (\agdir{withK}) & needs UIP for \ag{Thin} & needs UIP\\
+IR, codes (\agfile{TT.agda}) & a set, K-free & needs UIP\\
+HIIT (\agfile{HIIT.agda}) & critical pairs (\ag{ass}) & all \ag{refl}\\
+HIIT, Forded and conditional & a set (expected) & needs UIP\\
+\bottomrule
+\end{tabular}
+\end{center}
+Each version either puts the coherence of composition into the syntax, as
+critical pairs, or into the semantics, as UIP. What is never removed is the
+coherence of composing \emph{non-invertible} maps, here thinnings. For
+invertible structure, identity types and J supply all coherence for free (for
+instance, coherently associative groups are exactly loop spaces). For one
+non-invertible level nothing analogous is known in book HoTT. The same
+obstruction appears in a minimal form for coherently associative semigroups
+($A_\infty$ without units), which suggests that a solution would have to add
+a genuinely directed principle, as two-level type
+theory~\cite{acks-2ltt}, simplicial type theory~\cite{riehl-shulman} or
+displayed type theory~\cite{dtt} do.
+
+\begin{thebibliography}{99}
+\bibitem{ack-strict}
+Thorsten Altenkirch, Paolo Capriotti and Nicolai Kraus.
+\newblock Extending homotopy type theory with strict equality.
+\newblock In \emph{CSL 2016}, LIPIcs 62, pages 21:1--21:17, 2016.
+
+\bibitem{dybjer-ir}
+Peter Dybjer.
+\newblock A general formulation of simultaneous inductive-recursive
+  definitions in type theory.
+\newblock \emph{Journal of Symbolic Logic}, 65(2):525--549, 2000.
+
+\bibitem{dybjer-setzer}
+Peter Dybjer and Anton Setzer.
+\newblock A finite axiomatization of inductive-recursive definitions.
+\newblock In \emph{TLCA 1999}, LNCS 1581, pages 129--146. Springer, 1999.
+
+\bibitem{hedberg}
+Michael Hedberg.
+\newblock A coherence theorem for Martin-Löf's type theory.
+\newblock \emph{Journal of Functional Programming}, 8(4):413--436, 1998.
+
+\bibitem{hott-book}
+The Univalent Foundations Program.
+\newblock \emph{Homotopy Type Theory: Univalent Foundations of Mathematics}.
+\newblock Institute for Advanced Study, 2013.
+
+\bibitem{licata-shulman}
+Daniel R. Licata and Michael Shulman.
+\newblock Calculating the fundamental group of the circle in homotopy type
+  theory.
+\newblock In \emph{LICS 2013}, pages 223--232. IEEE, 2013.
+
+\bibitem{forsberg-setzer}
+Fredrik Nordvall Forsberg and Anton Setzer.
+\newblock Inductive-inductive definitions.
+\newblock In \emph{CSL 2010}, LNCS 6247, pages 454--468. Springer, 2010.
+
+\bibitem{rosain}
+Johann Rosain.
+\newblock A coherent syntax for intrinsic type theories.
+\newblock Internship report, Eötvös Loránd University, Budapest, 2026.
+
+\bibitem{acks-2ltt}
+Danil Annenkov, Paolo Capriotti, Nicolai Kraus and Christian Sattler.
+\newblock Two-level type theory and applications.
+\newblock \emph{Mathematical Structures in Computer Science}, 33(8):688--743,
+  2023.
+
+\bibitem{capriotti-kraus}
+Paolo Capriotti and Nicolai Kraus.
+\newblock Univalent higher categories via complete semi-Segal types.
+\newblock \emph{Proceedings of the ACM on Programming Languages}, 2(POPL):44:1--44:29,
+  2018.
+
+\bibitem{chapman}
+James Chapman.
+\newblock Type theory should eat itself.
+\newblock \emph{Electronic Notes in Theoretical Computer Science},
+  228:21--36, 2009.
+
+\bibitem{herbelin}
+Hugo Herbelin.
+\newblock A dependently-typed construction of semi-simplicial types.
+\newblock \emph{Mathematical Structures in Computer Science},
+  25(5):1116--1131, 2015.
+
+\bibitem{dtt}
+Astra Kolomatskaia and Michael Shulman.
+\newblock Displayed type theory and semi-simplicial types.
+\newblock \emph{Mathematical Structures in Computer Science}, published online
+  2025. arXiv:2311.18781.
+
+\bibitem{riehl-shulman}
+Emily Riehl and Michael Shulman.
+\newblock A type theory for synthetic $\infty$-categories.
+\newblock \emph{Higher Structures}, 1(1):147--224, 2017.
+
+\bibitem{shulman-eat}
+Michael Shulman.
+\newblock Homotopy type theory should eat itself (but so far, it's too big to
+  swallow).
+\newblock Blog post, \url{https://homotopytypetheory.org/2014/03/03/hott-should-eat-itself/},
+  2014.
+
+\bibitem{ufias-sst}
+Univalent Foundations special year, IAS.
+\newblock Semi-simplicial types (open problem page).
+\newblock \url{https://ncatlab.org/ufias2012/show/Semi-simplicial+types},
+  2012--13.
+
+\bibitem{voevodsky-hts}
+Vladimir Voevodsky.
+\newblock A simple type system with two identity types.
+\newblock Unpublished note, 2013.
+
+\bibitem{levitation}
+James Chapman, Pierre-Évariste Dagand, Conor McBride and Peter Morris.
+\newblock The gentle art of levitation.
+\newblock In \emph{ICFP 2010}, pages 3--14. ACM, 2010.
+
+\bibitem{mcbride-metaprog}
+Conor McBride.
+\newblock \emph{Dependently Typed Metaprogramming (in Agda)}.
+\newblock Lecture notes, 2013.
+\newblock \url{https://github.com/pigworker/MetaprogAgda}.
+\end{thebibliography}
+
+\end{document}
