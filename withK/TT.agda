@@ -65,6 +65,12 @@ data El where
           (σ : Thin A B) → δ ∘ σ ≡ δ' → Thin (ext A x δ') (ext B x δ)
     t-d : {δ : Thin A C} (σ : Thin A B) → Thin (ext A x δ) B
 
+{-
+t-k : {δ : Thin B C}(σ : Thin A B) 
+      → Thin (ext A x (δ ∘ σ) ) (ext B x δ)
+
+-}
+
 -- weakening of variables (only by p)
 wkVar : Var Γ A → (w : Wk Δ Γ) → Var Δ (wkTy A w)
 wkVar x p = suc x
@@ -94,6 +100,7 @@ t-k-cong {e = refl} {e' = refl} refl = refl
 
 ∘-k : {ρ : Thin C D}{δ : Thin B C}{σ : Thin A B}{δB : Thin B D}{δA : Thin A D}
       → ρ ∘ δ ≡ δB → δB ∘ σ ≡ δA → ρ ∘ (δ ∘ σ) ≡ δA
+--  ρ ∘ (δ ∘ σ) ≡ (ρ ∘ δ) ∘ ρ 
 ∘-k {ρ = ρ}{δ}{σ} refl refl = ∘-assoc ρ δ σ
 
 δ ∘ tε = δ
