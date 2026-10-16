@@ -17,8 +17,8 @@
 
 \newtheorem*{remark}{Remark}
 
-\title{Semi-simplicial types from a type theory of\\ weakenings and thinnings\\[0.5ex]
-\large and why we always meet an obstruction}
+\title{Any colour you like, as long as it's UIP\\[0.5ex]
+\large Semi-simplicial types from weakenings and thinnings}
 \author{Thorsten Altenkirch}
 \date{Draft, October 2026}
 
@@ -36,7 +36,8 @@ equations to hold definitionally which only hold propositionally, and
 patching this with transports needs uniqueness of identity proofs for the
 semantic types. Moving the problem into the syntax, by making composition a
 constructor, does not remove it either: it reappears as a coherence problem in
-the syntax. The Agda development accompanying this note is in the repository
+the syntax. Fording the HIIT, with conditional rules, makes the syntax
+provably a set, but the conditional rules in turn force UIP in any model. The Agda development accompanying this note is in the repository
 \href{\repourl}{\ag{github.com/txa/sst-new}}.
 \end{abstract}
 
@@ -183,7 +184,7 @@ $x_2$'s stored selection in $V_3$ (drop $x_0$ and $x_1$) to be the composite
 of the selection in $A_1$ (drop the first point) with the thinning that drops
 $x_0$.
 
-\section{The syntax: induction-recursion}
+\section{The syntax: induction-recursion}\label{sec:ir}
 
 We want the syntax to be an ordinary inductive definition, \emph{not} a
 quotient. A quotient inductive-inductive type is a set, and its recursor only
@@ -264,7 +265,7 @@ where \ag{e} and \ag{e'} are two proofs of the same equation
 \ag{δ ∘ σ ≡ δ'}. This needs them to be equal, i.e.\ uniqueness of identity
 proofs for \ag{Thin}. In Agda this is K (directory \agdir{withK}).
 
-\section{Removing UIP: codes for equality}
+\section{Removing UIP: codes for equality}\label{sec:codes}
 
 The syntax is finitary and first order, so all its sorts have decidable
 equality, and by Hedberg's theorem~\cite{hedberg} they are sets. Rather than going through
@@ -313,7 +314,7 @@ SST : ℕ → Con
 \end{agda}
 defined uniformly in $n$, without K (file \agfile{SSTk.agda}).
 
-\section{The interpretation, and the obstruction}
+\section{The interpretation, and the obstruction}\label{sec:interp}
 
 To finish we need the standard interpretation of the syntax in the universe:
 \begin{agda}
@@ -401,6 +402,182 @@ suggests that, as stated, it fails under univalence: in a model where
 with a twist by \ag{loop}, the loop above is sent to \ag{loop}, which is not
 \ag{refl}.
 
+\section{Fording the HIIT}\label{sec:fhiit}
+
+The critical pairs of the HIIT come from \ag{ass}, and \ag{ass} is only there
+because the keep rule has to say what the index of \ag{t-k δ ∘ t-k σ} is. We
+can avoid this with the same trick as in Section~\ref{sec:ir}: Ford the HIIT. Every
+index that would mention composition or weakening is replaced by a stored
+path, and the rules that would have to compute such a path are stated for
+\emph{every} path instead (file \agfile{experiments/forded-hiit/FHIIT2.agda};
+the fragment without variables and weakening is in
+\agfile{experiments/forded-hiit/FHIIT.agda}).
+\begin{agda}
+-- point constructors: composition and weakening are constructors
+_∘_    : Thin B C → Thin A B → Thin A C
+wk     : (E : Ty Γ) → Ty Γ → Ty (Γ ▷ E)
+wkThin : (E : Ty Γ) → Thin A A' → Thin (wk E A) (wk E A')
+t-k    : (σ : Thin A B) → δ ∘ σ ≡ δ' → Thin (ext A x δ') (ext B x δ)
+zero   : wk A A ≡ C → Var (Γ ▷ A) C
+suc    : Var Γ A → wk B A ≡ C → Var (Γ ▷ B) C
+
+-- conditional path constructors: for every stored path on the right
+t-k∘t-k : (r : δC ∘ (δ ∘ σ) ≡ δA) → t-k δ q ∘ t-k σ e ≡ t-k (δ ∘ σ) r
+wkext   : (p : wk E B ≡ wk E B)
+        → wk E (ext A x δ) ≡ ext (wk E A) (suc x p) (wkThin E δ)
+wkt-k   : (e' : wkThin E δ ∘ wkThin E σ ≡ wkThin E δ') → ...
+\end{agda}
+together with the unconditional computation rules \ag{∘tε}, \ag{∘t-d},
+\ag{t-d∘t-k}, \ag{wkε}, \ag{wkt-d}, \ag{wktε}. There is no \ag{ass}. The
+right-hand side of \ag{t-k∘t-k} would need the path
+\ag{ass ∙ cong (_∘ σ) q ∙ e}; quantifying over all \ag{r} means we never have
+to name it. Similarly, \ag{wkext} is stated for every loop \ag{p}, not only
+for \ag{refl}.
+
+\paragraph{The syntax is a set.}
+This version is a set, and this is formalised, without K and without
+postulates:
+\begin{agda}
+isSetCon  : isSet Con
+isSetTy   : isSet (Ty Γ)
+isSetVar  : isSet (Var Γ A)
+isSetThin : isSet (Thin A B)
+\end{agda}
+The proof is by normalisation. The normal forms are the inductive-recursive
+syntax with codes of Section~\ref{sec:codes}, with \ag{zero} and \ag{suc} Forded as well (file \agfile{experiments/forded-hiit/NF2.agda}),
+which is a set. There are maps
+\ag{nf} from the HIIT to normal forms and \ag{quote} back, and
+\ag{quote (nf t) ≡ t} is proved by induction on the HIIT. So every sort is a
+retract of a set. Most of the work is in the path constructors, where one
+has to fill a square, or for the weakening rules a cube. Two things make these
+fillable.
+\begin{itemize}
+\item For a stored path we only ever have to compare two stored paths of the
+  normal form, and those live in a set. So no coherence of the HIIT itself is
+  needed.
+\item The conditional rules give the needed freedom. In \ag{t-k∘t-k} the two
+  sides of what would be a critical pair are two keeps that differ only in
+  their stored paths, and the rule identifies them whatever the paths are.
+  For \ag{wkext} this is essential: with \ag{refl} fixed in the weakened
+  variable, the cube for \ag{wkext} has a boundary that can only be filled by
+  a 2-cell in the HIIT, which is not available. With an arbitrary loop
+  \ag{p}, the stored loop can be chosen so that every box closes.
+\end{itemize}
+(The proof uses \ag{TERMINATING} pragmas: the functions recurse through
+path arguments of constructors and on the endpoints of path constructors,
+which is structural but is not recognised by Agda's termination checker.)
+
+\paragraph{Why the standard model fails.}
+The conditional rules are what make the syntax a set, and they are also what
+prevents us from interpreting it in the universe. In the standard model a
+keep has to transport along the interpretation of its stored path, exactly as
+in Section~\ref{sec:interp}:
+\begin{agda}
+⟦ t-k σ e ⟧ (a , v) = ⟦ σ ⟧ a , subst ⟦ x ⟧ (happly ⟦ e ⟧ a)⁻¹ v
+\end{agda}
+Composition is now interpreted as function composition, so this is fine. But
+\ag{t-k∘t-k r} demands, for every path \ag{r}, that transporting $v$ first
+along $\llbracket e\rrbracket$ and then along $\llbracket q\rrbracket$ gives the
+same result as transporting along $\llbracket r\rrbracket$. The method of
+the recursor for \ag{t-k∘t-k} receives the interpretation of \ag{r} as an
+\emph{arbitrary} path between the semantic functions
+$\llbracket A\rrbracket\,\gamma\to\llbracket D\rrbracket\,\gamma$, not only the
+canonical one. So take it to be the canonical composite followed by a loop
+$\ell$ (by function extensionality, a loop at each point). Then transport along $\ell$ must be the identity: in the semantic
+telescope $\llbracket D\rrbracket\,\gamma$, \emph{every loop acts trivially on
+the family} $\llbracket x\rrbracket\,\gamma$.
+
+This is false. The context is arbitrary: $X_0$ is any type and $X_1$ any family
+over $X_0\times X_0$. Take $X_0 = S^1$ and $X_1\,y\,z = (y \equiv z)$, and let
+$\ell$ be \ag{loop} in the first point. Transport along $\ell$ in $X_1$ sends
+$u : \mathsf{base}\equiv\mathsf{base}$ to $\mathsf{loop}^{-1}\cdot u$, which is not
+$u$. The weakening rule fails even more directly. \ag{⟦ suc x p ⟧} transports
+along $\llbracket p\rrbracket$, a loop in a family of types, that is, a family of
+automorphisms of the telescope. Under univalence these exist, for instance the
+swap of the two points of an edge telescope, and they do not act trivially. So
+the conditional rules hold in a model only if all relevant identity types are
+trivial: we are back to UIP. They hold in the model of sets, where $X_0$ and
+the $X_k$ are sets. That model gives semi-simplicial \emph{sets}, which we
+could define anyway.
+
+\paragraph{The trade-off.}
+Without the conditions the semantics would be fine, but then \ag{t-k∘t-k} has
+to name its right-hand side, which brings back \ag{ass} and the critical pairs.
+So the forded HIIT makes the dilemma precise. The rule that makes all ways of
+composing keeps equal, and with it the syntax a set, is the same rule that
+asks the semantics to make all ways of transporting along them equal. A
+syntax that is a set but only states the rules for the \emph{canonical} paths
+would be what we want. The canonical paths, however, are the coherences of
+composition, and stating them is the original problem.
+
+\section{Single substitutions and coherent syntax}\label{sec:ssc}
+
+Rosain's report~\cite{rosain}, supervised by Kaposi, attacks the same problem
+from a different side. It follows Kaposi's idea of a \emph{coherent} type
+theory, one in which there is only one obvious way to prove two terms equal.
+\begin{itemize}
+\item The syntax is a HIT, not a QIT. Instead of parallel substitutions it uses
+  the single substitution calculus of Kaposi and Xie~\cite{kaposi-xie}:
+  weakening \ag{p}, lifting \ag{γ⁺} and instantiation \ag{⟨x⟩}, together with
+  their computation rules.
+\item In a dependent theory the computation rules for variables only typecheck
+  up to equations between types, for instance
+  \ag{vz[γ⁺] = vz} needs \ag{A[p][γ⁺] = A[γ][p]}. These equations are not
+  computed but \emph{assumed}: the rule is stated for every path
+  \ag{e : A[p][γ⁺] ≡ A[γ][p]}. These are conditional equations, exactly like
+  our \ag{t-k∘t-k} and \ag{wkext}.
+\item The plan is then to show that the syntax is a set by normalisation, that
+  is, by pushing substitutions down to variables.
+\end{itemize}
+For the simply typed $\lambda$-calculus this works, and it is formalised:
+types do not depend on terms, so there are no conditions. For the
+variable-only dependent theory needed for semi-simplicial types it does not
+yet work. To show that normal forms are stable under substitution one needs
+the type equations, such as \ag{A[p][⟨y⟩] = A} and
+\ag{A[p][γ⁺] = A[γ][p]}, generalised to substitutions lifted over a telescope.
+The induction then asks for hypotheses about the type of a variable under
+arbitrarily many lifted weakenings, which are too strong to be established
+elsewhere. Generalising the type, or using iterated substitutions, leads to a
+circular dependency. The report leaves the question open.
+
+We think that this approach meets the same two problems as ours.
+
+\paragraph{In the syntax: exchange instead of associativity.}
+Single substitutions have no general composition, and so no \ag{ass}. We tried
+the analogous idea for thinnings: a thinning is a word of single steps, a
+face \ag{p} lifted under some keeps (file
+\agfile{experiments/ssc/SSC.agda}). The
+standard model is then all \ag{refl}, without K. But the
+\emph{exchange law} $d_{j+1}d_i = d_id_j$, which is the shape of
+\ag{A[p][γ⁺] = A[γ][p]}, is needed already at level~2 of SST, and its lifted
+versions at level~3. Exchanges have critical triples. Three faces can be
+reordered in two ways, forming a hexagon that needs a 2-cell. Four faces need
+3-cells, and so on through the higher Bruhat orders. The generalised
+equations in Rosain's report, which need induction hypotheses under
+arbitrarily many lifts, look to us like the syntactic shadow of this tower.
+\ag{ass} has been traded for exchange, but there is still a tower of
+coherences for composing non-invertible maps.
+
+\paragraph{In the semantics: conditional equations need UIP.}
+Suppose the normalisation argument went through and the coherent syntax were
+a set. Its conditional equations would still block the standard model, for
+the reason given in Section~\ref{sec:fhiit}. In the standard model
+\ag{A[p][γ⁺]} and \ag{A[γ][p]} are both families over the same context, and
+they are equal by \ag{refl}. The method for \ag{vz[γ⁺] =e vz} must work for
+every semantic path $e$ between them, that is, for every loop in a type of
+families. So transport along an arbitrary such loop must fix the generic
+variable. Under univalence there are non-trivial loops, for instance an
+automorphism of a two-point telescope swapping the points. The equation forces
+them to act trivially, which brings back UIP. The conditional formulation is
+what makes ``one obvious way'' true in the syntax, and the standard model
+does not have this property.
+
+So the single substitution calculus moves the problem around in the same way
+as the Forded HIIT. Stating the equations conditionally makes the syntax a
+set, or is meant to, but rules out the model in the universe. Stating them
+for the canonical paths keeps the model but requires the coherences of
+composition, here in the form of exchange.
+
 \section{The obstruction is always there}
 
 The attempts can be summarised as follows.
@@ -413,7 +590,9 @@ IR, index by $\delta\circ\sigma$ & transports block computation & ---\\
 IR, Forded (\agdir{withK}) & needs UIP for \ag{Thin} & needs UIP\\
 IR, codes (\agfile{TT.agda}) & a set, K-free & needs UIP\\
 HIIT (\agfile{HIIT.agda}) & critical pairs (\ag{ass}) & all \ag{refl}\\
-HIIT, Forded and conditional & a set (expected) & needs UIP\\
+HIIT, Forded, conditional (\S\ref{sec:fhiit}) & a set, K-free & needs UIP\\
+single steps (\agfile{experiments/ssc/SSC.agda}) & critical triples & all \ag{refl}\\
+SSC, conditional (\S\ref{sec:ssc}) & a set? (open) & needs UIP\\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -428,6 +607,17 @@ obstruction appears in a minimal form for coherently associative semigroups
 a genuinely directed principle, as two-level type
 theory~\cite{acks-2ltt}, simplicial type theory~\cite{riehl-shulman} or
 displayed type theory~\cite{dtt} do.
+
+It is not clear, however, that displayed type theory resolves the problem.
+Its construction of semi-simplicial types proceeds by d\'ecalage, and this
+needs the display of the universe to consist of families,
+$\mathcal U^{\mathsf d}\,A \simeq (A \to \mathcal U)$ (relativity). Sarah
+Reboullet's thesis~\cite{reboullet} shows that in the nominal model of
+internal parametricity this fails for the universe: bridges in $\mathcal U$
+are not the same as families. So it is open whether there is a model of
+displayed type theory with a universe for which relativity holds, and with it
+whether displayed type theory yields semi-simplicial types in a homotopical
+setting.
 
 \section*{Use of AI tools}
 This note and the accompanying Agda development were produced in
@@ -477,8 +667,13 @@ Fredrik Nordvall Forsberg and Anton Setzer.
 
 \bibitem{rosain}
 Johann Rosain.
-\newblock A coherent syntax for intrinsic type theories.
-\newblock Internship report, Eötvös Loránd University, Budapest, 2026.
+\newblock Towards semi-simplicial types.
+\newblock Technical report, supervised by Ambrus Kaposi, Eötvös Loránd University, Budapest, 2026.
+
+\bibitem{kaposi-xie}
+Ambrus Kaposi and Szumi Xie.
+\newblock Type theory with single substitutions.
+\newblock In \emph{LFMTP 2025}, EPTCS 431, pages 42--64, 2025.
 
 \bibitem{acks-2ltt}
 Danil Annenkov, Paolo Capriotti, Nicolai Kraus and Christian Sattler.
@@ -509,6 +704,13 @@ Astra Kolomatskaia and Michael Shulman.
 \newblock Displayed type theory and semi-simplicial types.
 \newblock \emph{Mathematical Structures in Computer Science}, published online
   2025. arXiv:2311.18781.
+
+\bibitem{reboullet}
+Sarah Reboullet.
+\newblock \emph{Universe discrepancies in nominal presheaf models of parametric
+  type theory}.
+\newblock PhD thesis, Universit\'e Paris Cit\'e, 2025.
+\newblock HAL: tel-05584055.
 
 \bibitem{riehl-shulman}
 Emily Riehl and Michael Shulman.
