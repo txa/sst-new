@@ -147,6 +147,23 @@ pathK-img G H {b = b} {d = d} {v = v} refl s =
   cong-∘ (λ t → G (fst t) , fst (snd t) , H (fst t) ∙ fst (snd (snd t)) , snd (snd (snd t))) (λ q → b , d , q , v) s
   ∙ sym (cong-∘ (λ q → G b , d , q , v) (H b ∙_) s)
 
+imgSU : {B B' D D' : Set}{f : B → D}{f' : B' → D'}(G : B → B')(U : D → D')(H : (b : B) → f' (G b) ≡ U (f b))
+        {b b' : B}{d : D}{q : f b ≡ d}{q' : f b' ≡ d}
+        (r : b ≡ b')(s : sym (cong f r) ∙ q ≡ q') → sym (cong f' (cong G r)) ∙ (H b ∙ cong U q) ≡ H b' ∙ cong U q'
+imgSU G U H {b = b} refl s = cong (λ t → H b ∙ cong U t) s
+
+pathK-imgU : {B B' D D' : Set}{f : B → D}{f' : B' → D'}{V' : D' → Set}
+             (G : B → B')(U : D → D')(H : (b : B) → f' (G b) ≡ U (f b))
+             {b b' : B}{d : D}{q : f b ≡ d}{q' : f b' ≡ d}{v : V' (U d)}
+             (r : b ≡ b')(s : sym (cong f r) ∙ q ≡ q')
+           → cong (λ t → G (fst t) , U (fst (snd t)) , H (fst t) ∙ cong U (fst (snd (snd t))) , snd (snd (snd t)))
+                  (pathK {f = f} {V = λ d → V' (U d)} {v = v} r s)
+             ≡ pathK {f = f'} {V = V'} {v = v} (cong G r) (imgSU {f = f} {f'} G U H r s)
+pathK-imgU G U H {b = b} {d = d} {v = v} refl s =
+  cong-∘ (λ t → G (fst t) , U (fst (snd t)) , H (fst t) ∙ cong U (fst (snd (snd t))) , snd (snd (snd t)))
+         (λ q → b , d , q , v) s
+  ∙ sym (cong-∘ (λ q → G b , U d , q , v) (λ t → H b ∙ cong U t) s)
+
 compS : {B D : Set}{f : B → D}{b b' b'' : B}{d : D}{q : f b ≡ d}{q' : f b' ≡ d}{q'' : f b'' ≡ d}
         (r : b ≡ b')(r' : b' ≡ b'')(s : sym (cong f r) ∙ q ≡ q')(s' : sym (cong f r') ∙ q' ≡ q'')
       → sym (cong f (r ∙ r')) ∙ q ≡ q''
@@ -671,5 +688,186 @@ cohAs (t-k {x = z} {y = w} {δ = δD} {δ' = δC} ρ ez qq) (t-k {x = y} {δ' = 
      (CodeV-sound x w (CodeV-trans x z w (CodeV-trans x y z ex ey) ez))
      (CodeV-sound x w (CodeV-trans x y w ex (CodeV-trans y z w ey ez))) (VarΣ-set _ _)
      qq q e c _ _ _ _ a r
-cohWN = {!!}
-cohW∘ = {!!}
+-- the base of the weakening of a keep
+fstU : {Γ : Con}{A B C C' B₀ : Ty Γ}{x : Var Γ C}{y : Var Γ C'}
+       (σ : Thin A B)(δ : Thin B C')(δ' : Thin A C)(p₀ : _≡_ {A = VarΣ Γ} (C , x) (C' , y))
+       (e : Code (δ ∘ σ) δ')(e₁ : Code (wkThin δ (p {A = B₀}) ∘ wkThin σ p) (wkThin δ' p))
+       {γ : ⟦ Γ ⟧C}{X : ⟦ B₀ ⟧T γ → Grpd}(a : ⟦ wkTy A (p {A = B₀}) ⟧T (γ , X))
+       (r : Σ (⟦ wkTy C (p {A = B₀}) ⟧T (γ , X)) (λ d → Σ (⟦ wkThin δ' p ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ (unwk C d))))
+     → cong fst (uk σ δ δ' p₀ e e₁ a r) ≡ unwk-nat σ a
+fstU σ δ δ' refl e e₁ a r = pathK-fst (unwk-nat σ a) _
+
+-- cohWN for keeps
+WK : {Γ : Con}{A B C C' B₀ : Ty Γ}{x : Var Γ C}{y : Var Γ C'}
+     (ρ ρ' : Thin A B)(δ : Thin B C')(δ' : Thin A C)(p₀ p₀' : _≡_ {A = VarΣ Γ} (C , x) (C' , y))(w : p₀ ≡ p₀')
+     (w₁ : cong (sucΣ {B = B₀}) p₀ ≡ cong sucΣ p₀')
+     (c : Code ρ ρ')(c' : Code (wkThin ρ (p {A = B₀})) (wkThin ρ' p))
+     (e : Code (δ ∘ ρ) δ')(e' : Code (δ ∘ ρ') δ')
+     (e₁ : Code (wkThin δ p ∘ wkThin ρ p) (wkThin δ' p))(e₁' : Code (wkThin δ p ∘ wkThin ρ' p) (wkThin δ' p))
+     {γ : ⟦ Γ ⟧C}{X : ⟦ B₀ ⟧T γ → Grpd}(a : ⟦ wkTy A (p {A = B₀}) ⟧T (γ , X))
+     (r : Σ (⟦ wkTy C (p {A = B₀}) ⟧T (γ , X)) (λ d → Σ (⟦ wkThin δ' p ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ (unwk C d))))
+   → cong (unwk (ext B y δ)) (≈K (wkThin ρ p) (wkThin ρ' p) (wkThin δ p) (wkThin δ' p) (cong sucΣ p₀) (cong sucΣ p₀') w₁ c' e₁ e₁' a r)
+     ∙ uk ρ' δ δ' p₀' e' e₁' a r
+     ≡ uk ρ δ δ' p₀ e e₁ a r
+       ∙ ≈K ρ ρ' δ δ' p₀ p₀' w c e e' (unwk A a) (unwk C (fst r) , sym (unwk-nat δ' a) ∙ cong (unwk C) (fst (snd r)) , snd (snd r))
+WK {B = B} {C' = C'} ρ ρ' δ δ' refl .refl refl w₁ c c' e e' e₁ e₁' {γ = γ} a r =
+  subst (λ w₁ → cong (unwk (ext B _ δ)) (≈K (wkThin ρ p) (wkThin ρ' p) (wkThin δ p) (wkThin δ' p) refl refl w₁ c' e₁ e₁' a r)
+                ∙ uk ρ' δ δ' refl e' e₁' a r
+                ≡ uk ρ δ δ' refl e e₁ a r
+                  ∙ ≈K ρ ρ' δ δ' refl refl refl c e e' (unwk _ a) (unwk _ (fst r) , sym (unwk-nat δ' a) ∙ cong (unwk _) (fst (snd r)) , snd (snd r)))
+        (set→2prop VarΣ-set refl w₁)
+        (cong (_∙ uk ρ' δ δ' refl e' e₁' a r)
+              (pathK-imgU (unwk B) (unwk C') (λ b → sym (unwk-nat δ b)) (≈ {σ = wkThin ρ p} {wkThin ρ' p} c' a) _)
+         ∙ pathK-∙∙ (grpdEq (isGrpdT C' γ)) (cong (unwk B) (≈ {σ = wkThin ρ p} {wkThin ρ' p} c' a)) (unwk-nat ρ' a)
+                    (unwk-nat ρ a) (≈ {σ = ρ} {ρ'} c (unwk _ a)) _ _ _ _ (cohWN ρ ρ' c c' a))
+
+cohWN tε tε c c' a = refl
+cohWN (t-d ρ) (t-d ρ') c c' (a , r) = cohWN ρ ρ' c c' a
+cohWN (t-k {x = x} {y = y} {δ = δ} {δ' = δ'} ρ ex e) (t-k ρ' ex' e') c c' (a , r) =
+  WK ρ ρ' δ δ' (CodeV-sound x y ex) (CodeV-sound x y ex') (VarΣ-set _ _) (VarΣ-set _ _) c c' e e' _ _ a r
+
+-- cohW∘ for a keep after a keep
+module WDs {Γ : Con}{A B C D B₀ : Ty Γ}{x : Var Γ D}
+           (δ : Thin B C)(σ : Thin A B)(δC : Thin C D)(δB : Thin B D)(δA : Thin A D)
+           (q : Code (δC ∘ δ) δB)(e : Code (δB ∘ σ) δA)(kc : Code (δC ∘ (δ ∘ σ)) δA)
+           (qw : Code (wkThin δC (p {A = B₀}) ∘ wkThin δ p) (wkThin δB p))
+           (ew : Code (wkThin δB (p {A = B₀}) ∘ wkThin σ p) (wkThin δA p))
+           (kcw : Code (wkThin δC (p {A = B₀}) ∘ (wkThin δ p ∘ wkThin σ p)) (wkThin δA p))
+           (kcd : Code (wkThin δC (p {A = B₀}) ∘ wkThin (δ ∘ σ) p) (wkThin δA p))
+           (c : Code (wkThin δ (p {A = B₀}) ∘ wkThin σ p) (wkThin (δ ∘ σ) p))
+           {γ : ⟦ Γ ⟧C}{X : ⟦ B₀ ⟧T γ → Grpd}(a : ⟦ wkTy A (p {A = B₀}) ⟧T (γ , X))
+           (r : Σ (⟦ wkTy D (p {A = B₀}) ⟧T (γ , X)) (λ d → Σ (⟦ wkThin δA p ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ (unwk D d)))) where
+
+  r' : Σ (⟦ D ⟧T γ) (λ d → Σ (⟦ δA ⟧Th (unwk A a) ≡ d) (λ _ → ⟦ x ⟧V γ d))
+  r' = unwk D (fst r) , sym (unwk-nat δA a) ∙ cong (unwk D) (fst (snd r)) , snd (snd r)
+
+  Loop : Set
+  Loop = _≡_ {A = _≡_ {A = VarΣ (Γ ▷ B₀)} (wkTy D (p {A = B₀}) , suc {B = B₀} x) (wkTy D p , suc {B = B₀} x)} refl refl
+
+  endL endR : ⟦ ext C x δC ⟧T γ
+  endL = unwk (ext C x δC) (⟦ wkThin δ p ∘ wkThin σ p ⟧Th a ,
+                            tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin δ p ∘ wkThin σ p) (wkThin δC p) (wkThin δA p) refl kcw a r)
+  endR = ⟦ δ ⟧Th (⟦ σ ⟧Th (unwk A a)) ,
+         tkR {x = x} {y = x} δ δC δB refl q (⟦ σ ⟧Th (unwk A a)) (tkR {x = x} {y = x} σ δB δA refl e (unwk A a) r')
+
+  endM : ⟦ ext C x δC ⟧T γ
+  endM = unwk (ext C x δC) (⟦ wkThin δ p ⟧Th (⟦ wkThin σ p ⟧Th a) ,
+                            tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin δ p) (wkThin δC p) (wkThin δB p) refl qw (⟦ wkThin σ p ⟧Th a)
+                                (tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin σ p) (wkThin δB p) (wkThin δA p) refl ew a r))
+
+  LHS₀ : Loop → endL ≡ endR
+  LHS₀ w₂ = cong (unwk (ext C x δC)) (≈K {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin δ p ∘ wkThin σ p) (wkThin (δ ∘ σ) p) (wkThin δC p) (wkThin δA p)
+                                         refl refl w₂ c kcw kcd a r)
+            ∙ (uk {x = x} {y = x} (δ ∘ σ) δC δA refl kc kcd a r ∙ comp-k₀ {x = x} δ σ δC δB δA q e kc (unwk A a) r')
+
+  tail₀ : endM ≡ endR
+  tail₀ = uk {x = x} {y = x} δ δC δB refl q qw (⟦ wkThin σ p ⟧Th a) (tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin σ p) (wkThin δB p) (wkThin δA p) refl ew a r)
+          ∙ cong (λ t → ⟦ δ ⟧Th (fst t) , tkR {x = x} {y = x} δ δC δB refl q (fst t) (snd t)) (uk {x = x} {y = x} σ δB δA refl e ew a r)
+
+  WD₀ : LHS₀ refl
+        ≡ cong (unwk (ext C x δC)) (comp-k₀ {x = suc {B = B₀} x} (wkThin δ p) (wkThin σ p) (wkThin δC p) (wkThin δB p) (wkThin δA p) qw ew kcw a r)
+          ∙ tail₀
+  WD₀ =
+    cong (_∙ (uk {x = x} {y = x} (δ ∘ σ) δC δA refl kc kcd a r ∙ comp-k₀ {x = x} δ σ δC δB δA q e kc (unwk A a) r'))
+         (pathK-imgU (unwk C) (unwk D) (λ b → sym (unwk-nat δC b)) (≈ {σ = wkThin δ p ∘ wkThin σ p} {wkThin (δ ∘ σ) p} c a) _)
+    ∙ cong (pathK (cong (unwk C) (≈ {σ = wkThin δ p ∘ wkThin σ p} {wkThin (δ ∘ σ) p} c a))
+                  (imgSU (unwk C) (unwk D) (λ b → sym (unwk-nat δC b)) (≈ {σ = wkThin δ p ∘ wkThin σ p} {wkThin (δ ∘ σ) p} c a)
+                         (sym (∙-assoc (sym (cong ⟦ wkThin δC p ⟧Th (≈ {σ = wkThin δ p ∘ wkThin σ p} {wkThin (δ ∘ σ) p} c a)))
+                                       (kp (wkThin δC p) (wkThin δ p ∘ wkThin σ p) (wkThin δA p) kcw a) (fst (snd r)))
+                          ∙ cong (_∙ fst (snd r)) (cohN (wkThin δC p) (wkThin δ p ∘ wkThin σ p) (wkThin (δ ∘ σ) p) (wkThin δA p) c kcw kcd a))) ∙_)
+           (pathK-comp (unwk-nat (δ ∘ σ) a) (⟦∘⟧ δ σ (unwk A a)) _ _)
+    ∙ pathK-∙∙ (grpdEq (isGrpdT D γ))
+               (cong (unwk C) (≈ {σ = wkThin δ p ∘ wkThin σ p} {wkThin (δ ∘ σ) p} c a))
+               (unwk-nat (δ ∘ σ) a ∙ ⟦∘⟧ δ σ (unwk A a))
+               (cong (unwk C) (⟦∘⟧ (wkThin δ p) (wkThin σ p) a))
+               (unwk-nat δ (⟦ wkThin σ p ⟧Th a) ∙ cong ⟦ δ ⟧Th (unwk-nat σ a)) _ _ _ _
+               (cohW∘ δ σ c a)
+    ∙ sym (cong (_∙ tail₀)
+                (pathK-imgU (unwk C) (unwk D) (λ b → sym (unwk-nat δC b)) (⟦∘⟧ (wkThin δ p) (wkThin σ p) a) _)
+           ∙ cong (pathK (cong (unwk C) (⟦∘⟧ (wkThin δ p) (wkThin σ p) a))
+                         (imgSU (unwk C) (unwk D) (λ b → sym (unwk-nat δC b)) (⟦∘⟧ (wkThin δ p) (wkThin σ p) a)
+                                (sym (∙-assoc (sym (cong ⟦ wkThin δC p ⟧Th (⟦∘⟧ (wkThin δ p) (wkThin σ p) a)))
+                                              (kp (wkThin δC p) (wkThin δ p ∘ wkThin σ p) (wkThin δA p) kcw a) (fst (snd r)))
+                                 ∙ cong (_∙ fst (snd r)) (cohA (wkThin δC p) (wkThin δB p) (wkThin δA p) (wkThin δ p) (wkThin σ p) qw ew kcw a)
+                                 ∙ ∙-assoc (kp (wkThin δC p) (wkThin δ p) (wkThin δB p) qw (⟦ wkThin σ p ⟧Th a))
+                                           (kp (wkThin δB p) (wkThin σ p) (wkThin δA p) ew a) (fst (snd r)))) ∙_)
+                  (cong (uk {x = x} {y = x} δ δC δB refl q qw (⟦ wkThin σ p ⟧Th a) (tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin σ p) (wkThin δB p) (wkThin δA p) refl ew a r) ∙_)
+                        (pathK-img ⟦ δ ⟧Th (kp δC δ δB q) (unwk-nat σ a) _)
+                   ∙ pathK-comp (unwk-nat δ (⟦ wkThin σ p ⟧Th a)) (cong ⟦ δ ⟧Th (unwk-nat σ a)) _ _))
+
+  compw : Loop → _≡_ {A = ⟦ ext (wkTy C (p {A = B₀})) (suc {B = B₀} x) (wkThin δC p) ⟧T (γ , X)}
+                     (⟦ wkThin δ p ∘ wkThin σ p ⟧Th a ,
+                      tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin δ p ∘ wkThin σ p) (wkThin δC p) (wkThin δA p) refl kcw a r)
+                     (⟦ wkThin δ p ⟧Th (⟦ wkThin σ p ⟧Th a) ,
+                      tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin δ p) (wkThin δC p) (wkThin δB p) refl qw (⟦ wkThin σ p ⟧Th a)
+                          (tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin σ p) (wkThin δB p) (wkThin δA p) refl ew a r))
+  compw w₁ = subst (λ w → _≡_ {A = ⟦ ext (wkTy C (p {A = B₀})) (suc {B = B₀} x) (wkThin δC p) ⟧T (γ , X)}
+                       (⟦ wkThin δ p ∘ wkThin σ p ⟧Th a , tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin δ p ∘ wkThin σ p) (wkThin δC p) (wkThin δA p) w kcw a r)
+                       (⟦ wkThin δ p ⟧Th (⟦ wkThin σ p ⟧Th a) ,
+                        tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin δ p) (wkThin δC p) (wkThin δB p) refl qw (⟦ wkThin σ p ⟧Th a)
+                            (tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin σ p) (wkThin δB p) (wkThin δA p) refl ew a r)))
+                   w₁ (comp-k₀ {x = suc {B = B₀} x} (wkThin δ p) (wkThin σ p) (wkThin δC p) (wkThin δB p) (wkThin δA p) qw ew kcw a r)
+
+  WD₁ : (w₁ w₂ : Loop)
+      → LHS₀ w₂ ≡ cong (unwk (ext C x δC)) (compw w₁) ∙ tail₀
+  WD₁ w₁ w₂ =
+    subst (λ w₁ → LHS₀ w₂ ≡ cong (unwk (ext C x δC)) (compw w₁) ∙ tail₀)
+          (set→2prop VarΣ-set refl w₁)
+          (subst (λ w₂ → LHS₀ w₂ ≡ cong (unwk (ext C x δC)) (compw refl) ∙ tail₀)
+                 (set→2prop VarΣ-set refl w₂) WD₀)
+open WDs using (WD₁)
+
+WD : {Γ : Con}{A B C D₁ D₂ D₃ B₀ : Ty Γ}{x : Var Γ D₁}{y : Var Γ D₂}{z : Var Γ D₃}
+     (δ : Thin B C)(σ : Thin A B)(δC : Thin C D₃)(δB : Thin B D₂)(δA : Thin A D₁)
+     (pxy : _≡_ {A = VarΣ Γ} (D₁ , x) (D₂ , y))(pyz : _≡_ {A = VarΣ Γ} (D₂ , y) (D₃ , z))
+     (pxz : _≡_ {A = VarΣ Γ} (D₁ , x) (D₃ , z))(w₂ : cong (sucΣ {B = B₀}) pxz ≡ cong sucΣ pxz)
+     (q : Code (δC ∘ δ) δB)(e : Code (δB ∘ σ) δA)(kc : Code (δC ∘ (δ ∘ σ)) δA)
+     (qw : Code (wkThin δC (p {A = B₀}) ∘ wkThin δ p) (wkThin δB p))
+     (ew : Code (wkThin δB (p {A = B₀}) ∘ wkThin σ p) (wkThin δA p))
+     (kcw : Code (wkThin δC (p {A = B₀}) ∘ (wkThin δ p ∘ wkThin σ p)) (wkThin δA p))
+     (kcd : Code (wkThin δC (p {A = B₀}) ∘ wkThin (δ ∘ σ) p) (wkThin δA p))
+     (c : Code (wkThin δ (p {A = B₀}) ∘ wkThin σ p) (wkThin (δ ∘ σ) p))
+     {γ : ⟦ Γ ⟧C}{X : ⟦ B₀ ⟧T γ → Grpd}(a : ⟦ wkTy A (p {A = B₀}) ⟧T (γ , X))
+     (r : Σ (⟦ wkTy D₁ (p {A = B₀}) ⟧T (γ , X)) (λ d → Σ (⟦ wkThin δA p ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ (unwk D₁ d))))
+   → cong (unwk (ext C z δC)) (≈K (wkThin δ p ∘ wkThin σ p) (wkThin (δ ∘ σ) p) (wkThin δC p) (wkThin δA p)
+                                  (cong sucΣ pxz) (cong sucΣ pxz) w₂ c kcw kcd a r)
+     ∙ (uk (δ ∘ σ) δC δA pxz kc kcd a r
+        ∙ comp-k δ σ δC δB δA pxy pyz pxz q e kc (unwk A a)
+                 (unwk D₁ (fst r) , sym (unwk-nat δA a) ∙ cong (unwk D₁) (fst (snd r)) , snd (snd r)))
+     ≡ cong (unwk (ext C z δC))
+            (comp-k (wkThin δ p) (wkThin σ p) (wkThin δC p) (wkThin δB p) (wkThin δA p)
+                    (cong sucΣ pxy) (cong sucΣ pyz) (cong sucΣ pxz) qw ew kcw a r)
+       ∙ (uk δ δC δB pyz q qw (⟦ wkThin σ p ⟧Th a) (tkR (wkThin σ p) (wkThin δB p) (wkThin δA p) (cong sucΣ pxy) ew a r)
+          ∙ cong (λ t → ⟦ δ ⟧Th (fst t) , tkR δ δC δB pyz q (fst t) (snd t)) (uk σ δB δA pxy e ew a r))
+WD {A = A} {C = C} {D₁ = D₁} {B₀ = B₀} {x = x} δ σ δC δB δA refl refl pxz w₂ q e kc qw ew kcw kcd c {γ} {X} a r =
+  J₀ pxz (VarΣ-set refl pxz) (VarΣ-set refl (cong sucΣ pxz)) w₂
+  where
+    r' = unwk D₁ (fst r) , sym (unwk-nat δA a) ∙ cong (unwk D₁) (fst (snd r)) , snd (snd r)
+    J₀ : (pxz : _)(w₀ : refl ≡ pxz)(w₁ : refl ≡ cong (sucΣ {B = B₀}) pxz)(w₂ : cong (sucΣ {B = B₀}) pxz ≡ cong sucΣ pxz)
+       → cong (unwk (ext _ _ δC)) (≈K {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin δ p ∘ wkThin σ p) (wkThin (δ ∘ σ) p) (wkThin δC p) (wkThin δA p)
+                                      (cong sucΣ pxz) (cong sucΣ pxz) w₂ c kcw kcd a r)
+         ∙ (uk {x = x} {y = x} (δ ∘ σ) δC δA pxz kc kcd a r
+            ∙ subst (λ w → _≡_ {A = ⟦ ext C x δC ⟧T γ} (⟦ δ ∘ σ ⟧Th (unwk A a) , tkR {x = x} {y = x} (δ ∘ σ) δC δA w kc (unwk A a) r')
+                         (⟦ δ ⟧Th (⟦ σ ⟧Th (unwk A a)) , tkR {x = x} {y = x} δ δC δB refl q (⟦ σ ⟧Th (unwk A a)) (tkR {x = x} {y = x} σ δB δA refl e (unwk A a) r')))
+                    w₀ (comp-k₀ {x = x} δ σ δC δB δA q e kc (unwk A a) r'))
+         ≡ cong (unwk (ext _ _ δC))
+                (subst (λ w → _≡_ {A = ⟦ ext (wkTy C (p {A = B₀})) (suc {B = B₀} x) (wkThin δC p) ⟧T (γ , X)}
+                           (⟦ wkThin δ p ∘ wkThin σ p ⟧Th a , tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin δ p ∘ wkThin σ p) (wkThin δC p) (wkThin δA p) w kcw a r)
+                           (⟦ wkThin δ p ⟧Th (⟦ wkThin σ p ⟧Th a) ,
+                            tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin δ p) (wkThin δC p) (wkThin δB p) refl qw (⟦ wkThin σ p ⟧Th a)
+                                (tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin σ p) (wkThin δB p) (wkThin δA p) refl ew a r)))
+                       w₁ (comp-k₀ {x = suc {B = B₀} x} (wkThin δ p) (wkThin σ p) (wkThin δC p) (wkThin δB p) (wkThin δA p) qw ew kcw a r))
+           ∙ (uk {x = x} {y = x} δ δC δB refl q qw (⟦ wkThin σ p ⟧Th a) (tkR {x = suc {B = B₀} x} {y = suc {B = B₀} x} (wkThin σ p) (wkThin δB p) (wkThin δA p) refl ew a r)
+              ∙ cong (λ t → ⟦ δ ⟧Th (fst t) , tkR {x = x} {y = x} δ δC δB refl q (fst t) (snd t)) (uk {x = x} {y = x} σ δB δA refl e ew a r))
+    J₀ .refl refl w₁ w₂ = WD₁ δ σ δC δB δA q e kc qw ew kcw kcd c a r w₁ w₂
+
+cohW∘ δ tε c a = cong (λ t → cong (unwk _) t ∙ (unwk-nat δ a ∙ refl)) (refl≈ (wkThin δ p) c a)
+cohW∘ δ (t-d σ) c (a , r) = cohW∘ δ σ c a
+cohW∘ (t-d δ) (t-k {x = x} {y = y} {δ = δB} {δ' = δA} σ ex e) c (a , r) =
+  cohW∘ δ σ c a
+  ∙ cong (λ t → cong (unwk _) (⟦∘⟧ (wkThin δ p) (wkThin σ p) a) ∙ (unwk-nat δ (⟦ wkThin σ p ⟧Th a) ∙ t))
+         (sym (sym (cong-∘ ⟦ δ ⟧Th fst (uk σ δB δA (CodeV-sound x y ex) e _ a r))
+               ∙ cong (cong ⟦ δ ⟧Th) (fstU σ δB δA (CodeV-sound x y ex) e _ a r)))
+cohW∘ (t-k {x = y} {y = z} {δ = δC} {δ' = δB} δ ey q) (t-k {x = x} {δ' = δA} σ ex e) c (a , r) =
+  WD δ σ δC δB δA (CodeV-sound x y ex) (CodeV-sound y z ey) (CodeV-sound x z (CodeV-trans x y z ex ey))
+     (VarΣ-set _ _) q e _ _ _ _ _ c a r
