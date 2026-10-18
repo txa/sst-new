@@ -222,3 +222,48 @@ module FromSegal (X : SST4)(S : is21Semicat X) where
       middle = sym E₂ ∙ E₁
              ∙ (λ i → cong (_· k) (sym (E₄ i)) ∙ α (f · g) h k ∙ dropM ((f · g) ·_) (uniq t₀₂₄) i)
              ∙ (λ i → cong (_· k) (sym (α f g h)) ∙ α (f · g) h k ∙ E₃ i)
+
+-- degeneracies: identities, unitors and the triangle identity -------------------
+-- Degenerate triangles of an edge f : x → y (as in Segal3):
+--   s₀ f : X₂ id f f        s₁ f : X₂ f id f
+-- Degenerate tetrahedra of a triangle t : X₂ f g h on x y z, repeating a vertex:
+--   s₀ t  on x x y z :  faces  t, t, s₀ h, s₀ f
+--   s₁ t  on x y y z :  faces  s₀ g, t, t, s₁ f
+--   s₂ t  on x y z z :  faces  s₁ g, s₁ h, t, t
+
+record Degen4 (X : SST4) : Type where
+  open SST4 X
+  field
+    id₁ : {x : X₀} → X₁ x x
+    s₀  : {x y : X₀}(f : X₁ x y) → X₂ id₁ f f
+    s₁  : {x y : X₀}(f : X₁ x y) → X₂ f id₁ f
+    s₀₃ : {x y z : X₀}{f : X₁ x y}{g : X₁ y z}{h : X₁ x z}(t : X₂ f g h) → X₃ t t (s₀ h) (s₀ f)
+    s₁₃ : {x y z : X₀}{f : X₁ x y}{g : X₁ y z}{h : X₁ x z}(t : X₂ f g h) → X₃ (s₀ g) t t (s₁ f)
+    s₂₃ : {x y z : X₀}{f : X₁ x y}{g : X₁ y z}{h : X₁ x z}(t : X₂ f g h) → X₃ (s₁ g) (s₁ h) t t
+
+module FromSegalDeg (X : SST4)(S : is21Semicat X)(D : Degen4 X) where
+  open SST4 X
+  open Degen4 D
+  open FromSegal X S
+
+  -- the unitors
+  λu : {x y : X₀}(f : X₁ x y) → id₁ · f ≡ f
+  λu f = uniq (s₀ f)
+
+  ρu : {x y : X₀}(f : X₁ x y) → f · id₁ ≡ f
+  ρu f = uniq (s₁ f)
+
+  -- the triangle identity, from the degenerate tetrahedron s₁ (tri f g)
+  triangle : {x y z : X₀}(f : X₁ x y)(g : X₁ y z)
+           → α f id₁ g ∙ cong (f ·_) (λu g) ≡ cong (_· g) (ρu f)
+  triangle f g =
+      sym (cancelL P R)
+    ∙ cong (P ∙_) (sym E)
+    ∙ sym (rUnit P)
+    where
+      P = cong (_· g) (ρu f)
+      R = α f id₁ g ∙ cong (f ·_) (λu g)
+      E : refl ≡ sym P ∙ R
+      E = sym uniqRefl
+        ∙ Q (s₀ g) (tri f g) (tri f g) (s₁ f) (s₁₃ (tri f g))
+        ∙ cong (λ r → sym P ∙ α f id₁ g ∙ r) (dropR (cong (f ·_) (λu g)))

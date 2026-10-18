@@ -1,6 +1,6 @@
 {-# OPTIONS --cubical #-}
 {-
-The telescope layer of the syntax with composition given Segal-style:
+TT₀: the telescope layer of the syntax with composition given Segal-style:
 the 1-categorical (semicategory) version.
 
 * Thinnings do not compose by a recursive function; instead there is a
@@ -16,9 +16,11 @@ the 1-categorical (semicategory) version.
   boundary). Ty is not truncated. Tetrahedra carry no information.
 
 Result: (Ty, Thin, Tri, ⊤) is a Segal SST₃ (Segal3.isSemicat), hence a
-semicategory, with associativity derived from the tetrahedra.
+semicategory, with associativity derived from the tetrahedra. Identities are
+added as degeneracies (id and the degenerate triangles tri-idr, tri-idl),
+which makes it a category.
 -}
-module SegalSyntax1 where
+module TT0 where
 
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.HLevels
@@ -67,6 +69,10 @@ data El where
   fill₁ : {A B C D : Ty}{σ : Thin A B}{δ : Thin B C}{δC : Thin C D}
          {τ : Thin A C}{δB : Thin B D}{δA : Thin A D}
        → Tri δC δ δB → Tri δB σ δA → Tri δ σ τ → Tri δC τ δA
+  -- degeneracies: identities and the degenerate triangles
+  id      : {A : Ty} → Thin A A
+  tri-idr : {A C : Ty}(δ : Thin A C) → Tri δ id δ
+  tri-idl : {A C : Ty}(δ : Thin A C) → Tri id δ δ
   -- the computation rules of composition, as triangles
   tri-ε  : {C : Ty}{δ : Thin ε C} → Tri δ tε δ
   tri-d  : {A B C D : Ty}{γ : Thin A D}{δ : Thin B C}{σ : Thin A B}{τ : Thin A C}
@@ -122,3 +128,11 @@ semicat = FromSegal.semicat sst segal
 
 _ : {A B C : Ty}(σ : Thin A B)(δ : Thin B C) → Semicat._·_ semicat σ δ ≡ δ ∘ σ
 _ = λ σ δ → refl
+
+-- with the degeneracies, a category -------------------------------------------------
+
+degen : Degen3 sst
+degen = record { id₁ = id ; s₀ = tri-idr ; s₁ = tri-idl }
+
+cat : Cat
+cat = FromSegalCat.cat sst segal degen

@@ -116,3 +116,39 @@ module ToSegal (C : Semicat) where
         inhProp→isContr (cong (f ·_) (sym t₀) ∙ sym (assoc f g h) ∙ cong (_· h) t₃ ∙ t₁ , tt)
                         (isProp× (isSetHom _ _) isPropUnit)
     }
+
+-- degeneracies: identities and units ------------------------------------------
+-- An identity edge and the two degenerate triangles of an edge f : x → y:
+--   s₀ f  on the vertices x x y  (edges id, f, f)
+--   s₁ f  on the vertices x y y  (edges f, id, f)
+
+record Degen3 (X : SST3) : Type where
+  open SST3 X
+  field
+    id₁ : {x : X₀} → X₁ x x
+    s₀  : {x y : X₀}(f : X₁ x y) → X₂ id₁ f f
+    s₁  : {x y : X₀}(f : X₁ x y) → X₂ f id₁ f
+
+record Cat : Type₁ where
+  field
+    semicat : Semicat
+  open Semicat semicat
+  field
+    id  : {x : Ob} → Hom x x
+    idl : {x y : Ob}(f : Hom x y) → id · f ≡ f
+    idr : {x y : Ob}(f : Hom x y) → f · id ≡ f
+
+module FromSegalCat (X : SST3)(S : isSemicat X)(D : Degen3 X) where
+  open SST3 X
+  open Degen3 D
+  open FromSegal X S
+
+  cat : Cat
+  cat = record { semicat = semicat ; id = id₁ ; idl = λ f → uniq (s₀ f) ; idr = λ f → uniq (s₁ f) }
+
+module ToSegalCat (C : Cat) where
+  open Cat C
+  open ToSegal semicat
+
+  degen : Degen3 sst
+  degen = record { id₁ = id ; s₀ = idl ; s₁ = idr }
