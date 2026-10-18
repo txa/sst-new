@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible -W noUnsupportedIndexedMatch #-}
 {-
 The standard interpretation of the syntax in Agda's Set:
 

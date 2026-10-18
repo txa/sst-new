@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible -W noUnsupportedIndexedMatch #-}
 module SST where
 open import TT
 open import Agda.Builtin.Unit

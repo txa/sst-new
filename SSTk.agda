@@ -25,7 +25,7 @@ code/ version: no K. The equation stored in t-k is a typed code
 (Code (δ ∘ σ) δ'), a proposition by induction, so t-k-cong holds without
 K; equations of thinnings are converted with ≡→Code.
 -}
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible -W noUnsupportedIndexedMatch #-}
 module SSTk where
 
 open import TT

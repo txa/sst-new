@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible -W noUnsupportedIndexedMatch #-}
 {-
 TT without K, without Prop, without Bool or untyped representations.
 
