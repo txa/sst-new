@@ -107,6 +107,69 @@ set→2prop {a = a} {b} h {q} {q'} w w' = canon w ∙ sym (canon w')
 cong-∙ : {X Y : Set}(F : X → Y){x y z : X}(r : x ≡ y)(t : y ≡ z) → cong F (r ∙ t) ≡ cong F r ∙ cong F t
 cong-∙ F refl t = refl
 
+cong-∘ : {X Y Z : Set}(G : Y → Z)(F : X → Y){x y : X}(r : x ≡ y) → cong G (cong F r) ≡ cong (λ z → G (F z)) r
+cong-∘ G F refl = refl
+
+cong-const : {X Y : Set}(y₀ : Y){x x' : X}(r : x ≡ x') → cong (λ _ → y₀) r ≡ refl
+cong-const y₀ refl = refl
+
+∙-assoc : {X : Set}{x y z w : X}(p : x ≡ y)(q : y ≡ z)(r : z ≡ w) → (p ∙ q) ∙ r ≡ p ∙ (q ∙ r)
+∙-assoc refl q r = refl
+
+reassoc3 : {X : Set}{x y z w u : X}(a : x ≡ y)(b : y ≡ z)(c : z ≡ w)(d : w ≡ u)
+         → a ∙ (b ∙ (c ∙ d)) ≡ (a ∙ (b ∙ c)) ∙ d
+reassoc3 refl refl c d = refl
+
+∙sym : {X : Set}{x y : X}(p : x ≡ y) → p ∙ sym p ≡ refl
+∙sym refl = refl
+
+-- an idempotent loop is trivial
+idem : {X : Set}{x : X}(t : x ≡ x) → t ∙ t ≡ t → t ≡ refl
+idem t h = sym (∙refl t) ∙ cong (t ∙_) (sym (∙sym t)) ∙ sym (∙-assoc t t (sym t)) ∙ cong (_∙ sym t) h ∙ ∙sym t
+
+-- projections and images of pathK
+pathK-fst : {B D : Set}{f : B → D}{V : D → Set}{b b' : B}{d : D}{q : f b ≡ d}{q' : f b' ≡ d}{v : V d}
+            (r : b ≡ b')(s : sym (cong f r) ∙ q ≡ q') → cong fst (pathK {V = V} {v = v} r s) ≡ r
+pathK-fst {b = b} {d = d} {v = v} refl s = cong-∘ fst (λ q → b , d , q , v) s ∙ cong-const b s
+
+imgS : {B B' D : Set}{f : B → D}{f' : B' → D}(G : B → B')(H : (b : B) → f' (G b) ≡ f b)
+       {b b' : B}{d : D}{q : f b ≡ d}{q' : f b' ≡ d}
+       (r : b ≡ b')(s : sym (cong f r) ∙ q ≡ q') → sym (cong f' (cong G r)) ∙ (H b ∙ q) ≡ H b' ∙ q'
+imgS G H {b = b} refl s = cong (H b ∙_) s
+
+pathK-img : {B B' D : Set}{f : B → D}{f' : B' → D}{V : D → Set}
+            (G : B → B')(H : (b : B) → f' (G b) ≡ f b)
+            {b b' : B}{d : D}{q : f b ≡ d}{q' : f b' ≡ d}{v : V d}
+            (r : b ≡ b')(s : sym (cong f r) ∙ q ≡ q')
+          → cong (λ t → G (fst t) , fst (snd t) , H (fst t) ∙ fst (snd (snd t)) , snd (snd (snd t))) (pathK {V = V} {v = v} r s)
+            ≡ pathK {V = V} {v = v} (cong G r) (imgS {f = f} {f'} G H r s)
+pathK-img G H {b = b} {d = d} {v = v} refl s =
+  cong-∘ (λ t → G (fst t) , fst (snd t) , H (fst t) ∙ fst (snd (snd t)) , snd (snd (snd t))) (λ q → b , d , q , v) s
+  ∙ sym (cong-∘ (λ q → G b , d , q , v) (H b ∙_) s)
+
+compS : {B D : Set}{f : B → D}{b b' b'' : B}{d : D}{q : f b ≡ d}{q' : f b' ≡ d}{q'' : f b'' ≡ d}
+        (r : b ≡ b')(r' : b' ≡ b'')(s : sym (cong f r) ∙ q ≡ q')(s' : sym (cong f r') ∙ q' ≡ q'')
+      → sym (cong f (r ∙ r')) ∙ q ≡ q''
+compS refl refl s s' = s ∙ s'
+
+pathK-comp : {B D : Set}{f : B → D}{V : D → Set}{b b' b'' : B}{d : D}
+             {q : f b ≡ d}{q' : f b' ≡ d}{q'' : f b'' ≡ d}{v : V d}
+             (r : b ≡ b')(r' : b' ≡ b'')(s : sym (cong f r) ∙ q ≡ q')(s' : sym (cong f r') ∙ q' ≡ q'')
+           → pathK {V = V} {v = v} r s ∙ pathK r' s' ≡ pathK (r ∙ r') (compS r r' s s')
+pathK-comp {b = b} {d = d} {v = v} refl refl s s' = sym (cong-∙ (λ q → b , d , q , v) s s')
+
+-- two composites of pathKs agree if their base paths do
+pathK-∙∙ : {B D : Set}{f : B → D}{V : D → Set}(gD : isGrpdEq D){b b₁ b₃ b' : B}{d : D}
+           {q : f b ≡ d}{q₁ : f b₁ ≡ d}{q₃ : f b₃ ≡ d}{q' : f b' ≡ d}{v : V d}
+           (r₁ : b ≡ b₁)(r₂ : b₁ ≡ b')(r₃ : b ≡ b₃)(r₄ : b₃ ≡ b')
+           (s₁ : sym (cong f r₁) ∙ q ≡ q₁)(s₂ : sym (cong f r₂) ∙ q₁ ≡ q')
+           (s₃ : sym (cong f r₃) ∙ q ≡ q₃)(s₄ : sym (cong f r₄) ∙ q₃ ≡ q')
+         → r₁ ∙ r₂ ≡ r₃ ∙ r₄
+         → pathK {V = V} {v = v} r₁ s₁ ∙ pathK r₂ s₂ ≡ pathK r₃ s₃ ∙ pathK r₄ s₄
+pathK-∙∙ gD {b = b} {d = d} {v = v} refl refl refl .refl s₁ s₂ s₃ s₄ refl =
+  sym (cong-∙ (λ q → b , d , q , v) s₁ s₂) ∙ cong (cong (λ q → b , d , q , v)) (gD (s₁ ∙ s₂) (s₃ ∙ s₄))
+  ∙ cong-∙ (λ q → b , d , q , v) s₃ s₄
+
 -- composing paths of the form pathK
 pathK-∙≡ : {B D : Set}{f : B → D}{V : D → Set}(gD : isGrpdEq D){b b' b'' : B}{d : D}
            {q : f b ≡ d}{q' : f b' ≡ d}{q'' : f b'' ≡ d}{v : V d}
@@ -273,9 +336,9 @@ cohW {C = C} σ δ δ' e e₁ a =
      (c : Code σ τ)(e : Code (δ ∘ σ) δ')(e' : Code (δ ∘ τ) δ')(a : ⟦ A ⟧T γ)
      (r : Σ (⟦ C ⟧T γ) (λ d → Σ (⟦ δ' ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d)))
    → _≡_ {A = ⟦ ext B y δ ⟧T γ} (⟦ σ ⟧Th a , tkR σ δ δ' pxy e a r) (⟦ τ ⟧Th a , tkR τ δ δ' pxy e' a r)
-≈k {σ = σ} {τ} δ δ' refl c e e' a (d , refl , v) =
-  pathK (≈ {σ = σ} {τ} c a) (cong (sym (cong ⟦ δ ⟧Th (≈ {σ = σ} {τ} c a)) ∙_) (∙refl (kp δ σ δ' e a))
-                 ∙ cohN δ σ τ δ' c e e' a ∙ sym (∙refl (kp δ τ δ' e' a)))
+≈k {σ = σ} {τ} δ δ' refl c e e' a (d , q , v) =
+  pathK (≈ {σ = σ} {τ} c a) (sym (∙-assoc (sym (cong ⟦ δ ⟧Th (≈ {σ = σ} {τ} c a))) (kp δ σ δ' e a) q)
+                             ∙ cong (_∙ q) (cohN δ σ τ δ' c e e' a))
 
 ≈K σ τ δ δ' pxy pxy' w c e e' a r =
   subst (λ q → _≡_ {A = ⟦ ext _ _ δ ⟧T _} (⟦ σ ⟧Th a , tkR σ δ δ' pxy e a r)
@@ -306,11 +369,11 @@ comp-k₀ : {Γ : Con}{A B C D : Ty Γ}{x : Var Γ D}{γ : ⟦ Γ ⟧C}
         → _≡_ {A = ⟦ ext C x δC ⟧T γ}
             (⟦ δ ∘ σ ⟧Th a , tkR (δ ∘ σ) δC δA refl e' a r)
             (⟦ δ ⟧Th (⟦ σ ⟧Th a) , tkR δ δC δB refl q (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r))
-comp-k₀ δ σ δC δB δA q e e' a (d , refl , v) =
+comp-k₀ δ σ δC δB δA q e e' a (d , q₀ , v) =
   pathK (⟦∘⟧ δ σ a)
-        (cong (sym (cong ⟦ δC ⟧Th (⟦∘⟧ δ σ a)) ∙_) (∙refl (kp δC (δ ∘ σ) δA e' a))
-         ∙ cohA δC δB δA δ σ q e e' a
-         ∙ cong (kp δC δ δB q (⟦ σ ⟧Th a) ∙_) (sym (∙refl (kp δB σ δA e a))))
+        (sym (∙-assoc (sym (cong ⟦ δC ⟧Th (⟦∘⟧ δ σ a))) (kp δC (δ ∘ σ) δA e' a) q₀)
+         ∙ cong (_∙ q₀) (cohA δC δB δA δ σ q e e' a)
+         ∙ ∙-assoc (kp δC δ δB q (⟦ σ ⟧Th a)) (kp δB σ δA e a) q₀)
 
 comp-k {x = x} {γ = γ} δ σ δC δB δA refl refl pxz q e e' a r =
   subst (λ w → _≡_ {A = ⟦ ext _ x δC ⟧T γ}
@@ -336,12 +399,14 @@ uk : {Γ : Con}{A B C C' B₀ : Ty Γ}{x : Var Γ C}{y : Var Γ C'}
        (unwk (ext B y δ) (⟦ wkThin σ p ⟧Th a , tkR (wkThin σ p) (wkThin δ p) (wkThin δ' p) (cong (sucΣ {B = B₀}) p₀) e₁ a r))
        (⟦ σ ⟧Th (unwk A a) ,
         tkR σ δ δ' p₀ e (unwk A a) (unwk C (fst r) , sym (unwk-nat δ' a) ∙ cong (unwk C) (fst (snd r)) , snd (snd r)))
-uk {C = C} σ δ δ' refl e e₁ a (d , refl , v) =
+uk {C = C} σ δ δ' refl e e₁ a (d , q , v) =
   pathK (unwk-nat σ a)
-        (cong (λ z → sym (cong ⟦ δ ⟧Th (unwk-nat σ a)) ∙ sym (unwk-nat δ (⟦ wkThin σ p ⟧Th a)) ∙ cong (unwk C) z)
-              (∙refl (kp (wkThin δ p) (wkThin σ p) (wkThin δ' p) e₁ a))
-         ∙ cohW σ δ δ' e e₁ a
-         ∙ cong (kp δ σ δ' e (unwk _ a) ∙_) (sym (∙refl (sym (unwk-nat δ' a)))))
+        (cong (λ t → sym (cong ⟦ δ ⟧Th (unwk-nat σ a)) ∙ sym (unwk-nat δ (⟦ wkThin σ p ⟧Th a)) ∙ t)
+              (cong-∙ (unwk C) (kp (wkThin δ p) (wkThin σ p) (wkThin δ' p) e₁ a) q)
+         ∙ reassoc3 (sym (cong ⟦ δ ⟧Th (unwk-nat σ a))) (sym (unwk-nat δ (⟦ wkThin σ p ⟧Th a)))
+                    (cong (unwk C) (kp (wkThin δ p) (wkThin σ p) (wkThin δ' p) e₁ a)) (cong (unwk C) q)
+         ∙ cong (_∙ cong (unwk C) q) (cohW σ δ δ' e e₁ a)
+         ∙ ∙-assoc (kp δ σ δ' e (unwk _ a)) (sym (unwk-nat δ' a)) (cong (unwk C) q))
 
 unwk-nat tε a = refl
 unwk-nat (t-d σ) (a , r) = unwk-nat σ a
@@ -387,8 +452,224 @@ cohT (t-d σ) (t-d τ) (t-d ρ) c d cd (a , r) = cohT σ τ ρ c d cd a
 cohT (t-k {x = x} {y} {δ} {δ'} σ ex e) (t-k τ ex' e') (t-k ρ ex'' e'') c d cd (a , r) =
   TK σ τ ρ δ δ' (CodeV-sound x y ex) (CodeV-sound x y ex') (CodeV-sound x y ex'')
      (VarΣ-set _ _) (VarΣ-set _ _) (VarΣ-set _ _) c d cd e e' e'' a r
-cohR = {!!}
-cohL = {!!}
-cohAs = {!!}
+-- the code path of a loop is trivial
+refl≈ : {Γ : Con}{A C : Ty Γ}(σ : Thin A C)(c : Code σ σ){γ : ⟦ Γ ⟧C}(a : ⟦ A ⟧T γ) → ≈ {σ = σ} {σ} c a ≡ refl
+refl≈ σ c a = idem (≈ {σ = σ} {σ} c a) (cohT σ σ σ c c c a)
+
+-- the base of ≈ on a keep is ≈ on the kept thinning
+fstK : {Γ : Con}{A B C C' : Ty Γ}{x : Var Γ C}{y : Var Γ C'}{γ : ⟦ Γ ⟧C}
+       (σ τ : Thin A B)(δ : Thin B C')(δ' : Thin A C)(pxy pxy' : _≡_ {A = VarΣ Γ} (C , x) (C' , y))(w : pxy ≡ pxy')
+       (c : Code σ τ)(e : Code (δ ∘ σ) δ')(e' : Code (δ ∘ τ) δ')(a : ⟦ A ⟧T γ)
+       (r : Σ (⟦ C ⟧T γ) (λ d → Σ (⟦ δ' ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d)))
+     → cong fst (≈K σ τ δ δ' pxy pxy' w c e e' a r) ≡ ≈ {σ = σ} {τ} c a
+fstK σ τ δ δ' refl .refl refl c e e' a (d , refl , v) = pathK-fst (≈ {σ = σ} {τ} c a) _
+
+-- cohR for a keep after a keep
+RK : {Γ : Con}{A B C D₁ D₂ D₃ : Ty Γ}{x : Var Γ D₁}{y : Var Γ D₂}{z : Var Γ D₃}{γ : ⟦ Γ ⟧C}
+     (δ : Thin B C)(σ τ : Thin A B)(δC : Thin C D₃)(δB : Thin B D₂)(δA : Thin A D₁)
+     (pxy pxy' : _≡_ {A = VarΣ Γ} (D₁ , x) (D₂ , y))(w : pxy ≡ pxy')(pyz : _≡_ {A = VarΣ Γ} (D₂ , y) (D₃ , z))
+     (pxz pxz' : _≡_ {A = VarΣ Γ} (D₁ , x) (D₃ , z))(w' : pxz ≡ pxz')
+     (c : Code σ τ)(c' : Code (δ ∘ σ) (δ ∘ τ))(q : Code (δC ∘ δ) δB)(e : Code (δB ∘ σ) δA)(e' : Code (δB ∘ τ) δA)
+     (kc : Code (δC ∘ (δ ∘ σ)) δA)(kc' : Code (δC ∘ (δ ∘ τ)) δA)
+     (a : ⟦ A ⟧T γ)(r : Σ (⟦ D₁ ⟧T γ) (λ d → Σ (⟦ δA ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d)))
+   → comp-k δ σ δC δB δA pxy pyz pxz q e kc a r
+     ∙ cong (λ t → ⟦ δ ⟧Th (fst t) , tkR δ δC δB pyz q (fst t) (snd t)) (≈K σ τ δB δA pxy pxy' w c e e' a r)
+     ≡ ≈K (δ ∘ σ) (δ ∘ τ) δC δA pxz pxz' w' c' kc kc' a r ∙ comp-k δ τ δC δB δA pxy' pyz pxz' q e' kc' a r
+RK₀ : {Γ : Con}{A B C D : Ty Γ}{x : Var Γ D}{γ : ⟦ Γ ⟧C}
+      (δ : Thin B C)(σ τ : Thin A B)(δC : Thin C D)(δB : Thin B D)(δA : Thin A D)
+      (c : Code σ τ)(c' : Code (δ ∘ σ) (δ ∘ τ))(q : Code (δC ∘ δ) δB)(e : Code (δB ∘ σ) δA)(e' : Code (δB ∘ τ) δA)
+      (kc : Code (δC ∘ (δ ∘ σ)) δA)(kc' : Code (δC ∘ (δ ∘ τ)) δA)
+      (a : ⟦ A ⟧T γ)(r : Σ (⟦ D ⟧T γ) (λ d → Σ (⟦ δA ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d)))
+    → comp-k₀ δ σ δC δB δA q e kc a r
+      ∙ cong (λ t → ⟦ δ ⟧Th (fst t) , tkR δ δC δB refl q (fst t) (snd t)) (≈k {σ = σ} {τ} δB δA refl c e e' a r)
+      ≡ ≈k {σ = δ ∘ σ} {δ ∘ τ} δC δA refl c' kc kc' a r ∙ comp-k₀ δ τ δC δB δA q e' kc' a r
+RK₀ {D = D} {γ = γ} δ σ τ δC δB δA c c' q e e' kc kc' a (d , refl , v) =
+  cong (comp-k₀ δ σ δC δB δA q e kc a (d , refl , v) ∙_)
+       (pathK-img ⟦ δ ⟧Th (kp δC δ δB q) (≈ {σ = σ} {τ} c a) _)
+  ∙ pathK-∙∙ (grpdEq (isGrpdT D γ)) (⟦∘⟧ δ σ a) (cong ⟦ δ ⟧Th (≈ {σ = σ} {τ} c a))
+             (≈ {σ = δ ∘ σ} {δ ∘ τ} c' a) (⟦∘⟧ δ τ a) _ _ _ _ (cohR δ σ τ c c' a)
+RK δ σ τ δC δB δA refl .refl refl refl pxz .pxz refl c c' q e e' kc kc' a r =
+  J-pxz pxz (VarΣ-set refl pxz)
+  where
+    J-pxz : (pxz : _) (w₀ : refl ≡ pxz)
+          → subst (λ w → _≡_ {A = ⟦ ext _ _ δC ⟧T _} (⟦ δ ∘ σ ⟧Th a , tkR (δ ∘ σ) δC δA w kc a r)
+                                (⟦ δ ⟧Th (⟦ σ ⟧Th a) , tkR δ δC δB refl q (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r)))
+                  w₀ (comp-k₀ δ σ δC δB δA q e kc a r)
+            ∙ cong (λ t → ⟦ δ ⟧Th (fst t) , tkR δ δC δB refl q (fst t) (snd t)) (≈K σ τ δB δA refl refl refl c e e' a r)
+            ≡ ≈K (δ ∘ σ) (δ ∘ τ) δC δA pxz pxz refl c' kc kc' a r
+              ∙ subst (λ w → _≡_ {A = ⟦ ext _ _ δC ⟧T _} (⟦ δ ∘ τ ⟧Th a , tkR (δ ∘ τ) δC δA w kc' a r)
+                                  (⟦ δ ⟧Th (⟦ τ ⟧Th a) , tkR δ δC δB refl q (⟦ τ ⟧Th a) (tkR τ δB δA refl e' a r)))
+                      w₀ (comp-k₀ δ τ δC δB δA q e' kc' a r)
+    J-pxz .refl refl = RK₀ δ σ τ δC δB δA c c' q e e' kc kc' a r
+
+cohR δ tε tε c c' a = sym (∙refl (≈ {σ = δ} {δ} c' a) ∙ refl≈ δ c' a)
+cohR δ (t-d σ) (t-d τ) c c' (a , r) = cohR δ σ τ c c' a
+cohR (t-d δ) (t-k {δ = δB} {δ' = δA} σ ex e) (t-k τ ex' e') c c' (a , r) =
+  cong (⟦∘⟧ δ σ a ∙_)
+       (sym (cong-∘ ⟦ δ ⟧Th fst (≈K σ τ δB δA _ _ (VarΣ-set _ _) c e e' a r))
+        ∙ cong (cong ⟦ δ ⟧Th) (fstK σ τ δB δA _ _ (VarΣ-set _ _) c e e' a r))
+  ∙ cohR δ σ τ c c' a
+cohR (t-k {x = y} {y = z} {δ = δC} {δ' = δB} δ ey q) (t-k {x = x} {δ' = δA} σ ex e) (t-k τ ex' e') c c' (a , r) =
+  RK δ σ τ δC δB δA (CodeV-sound x y ex) (CodeV-sound x y ex') (VarΣ-set _ _) (CodeV-sound y z ey)
+     (CodeV-sound x z (CodeV-trans x y z ex ey)) (CodeV-sound x z (CodeV-trans x y z ex' ey)) (VarΣ-set _ _)
+     c c' q e e' _ _ a r
+≈-irr : {Γ : Con}{A C : Ty Γ}(σ τ : Thin A C)(c c' : Code σ τ){γ : ⟦ Γ ⟧C}(a : ⟦ A ⟧T γ)
+      → ≈ {σ = σ} {τ} c a ≡ ≈ {σ = σ} {τ} c' a
+≈-irr σ τ c c' a = cong (λ k → ≈ {σ = σ} {τ} k a) (Code-prop σ τ c c')
+
+-- cohL for a keep after a keep
+LK : {Γ : Con}{A B C D₁ D₂ D₃ : Ty Γ}{x : Var Γ D₁}{y : Var Γ D₂}{z : Var Γ D₃}{γ : ⟦ Γ ⟧C}
+     (δ δ₂ : Thin B C)(σ : Thin A B)(δC : Thin C D₃)(δB : Thin B D₂)(δA : Thin A D₁)
+     (pxy : _≡_ {A = VarΣ Γ} (D₁ , x) (D₂ , y))(pyz pyz' : _≡_ {A = VarΣ Γ} (D₂ , y) (D₃ , z))(w : pyz ≡ pyz')
+     (pxz pxz' : _≡_ {A = VarΣ Γ} (D₁ , x) (D₃ , z))(w' : pxz ≡ pxz')
+     (c : Code δ δ₂)(c' : Code (δ ∘ σ) (δ₂ ∘ σ))(q : Code (δC ∘ δ) δB)(q' : Code (δC ∘ δ₂) δB)(e : Code (δB ∘ σ) δA)
+     (kc : Code (δC ∘ (δ ∘ σ)) δA)(kc' : Code (δC ∘ (δ₂ ∘ σ)) δA)
+     (a : ⟦ A ⟧T γ)(r : Σ (⟦ D₁ ⟧T γ) (λ d → Σ (⟦ δA ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d)))
+   → comp-k δ σ δC δB δA pxy pyz pxz q e kc a r
+     ∙ ≈K δ δ₂ δC δB pyz pyz' w c q q' (⟦ σ ⟧Th a) (tkR σ δB δA pxy e a r)
+     ≡ ≈K (δ ∘ σ) (δ₂ ∘ σ) δC δA pxz pxz' w' c' kc kc' a r ∙ comp-k δ₂ σ δC δB δA pxy pyz' pxz' q' e kc' a r
+LK₀ : {Γ : Con}{A B C D : Ty Γ}{x : Var Γ D}{γ : ⟦ Γ ⟧C}
+      (δ δ₂ : Thin B C)(σ : Thin A B)(δC : Thin C D)(δB : Thin B D)(δA : Thin A D)
+      (c : Code δ δ₂)(c' : Code (δ ∘ σ) (δ₂ ∘ σ))(q : Code (δC ∘ δ) δB)(q' : Code (δC ∘ δ₂) δB)(e : Code (δB ∘ σ) δA)
+      (kc : Code (δC ∘ (δ ∘ σ)) δA)(kc' : Code (δC ∘ (δ₂ ∘ σ)) δA)
+      (a : ⟦ A ⟧T γ)(r : Σ (⟦ D ⟧T γ) (λ d → Σ (⟦ δA ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d)))
+    → comp-k₀ δ σ δC δB δA q e kc a r
+      ∙ ≈k {σ = δ} {δ₂} δC δB refl c q q' (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r)
+      ≡ ≈k {σ = δ ∘ σ} {δ₂ ∘ σ} δC δA refl c' kc kc' a r ∙ comp-k₀ δ₂ σ δC δB δA q' e kc' a r
+LK₀ {D = D} {γ = γ} δ δ₂ σ δC δB δA c c' q q' e kc kc' a (d , q₀ , v) =
+  pathK-∙∙ (grpdEq (isGrpdT D γ)) (⟦∘⟧ δ σ a) (≈ {σ = δ} {δ₂} c (⟦ σ ⟧Th a))
+           (≈ {σ = δ ∘ σ} {δ₂ ∘ σ} c' a) (⟦∘⟧ δ₂ σ a) _ _ _ _ (cohL δ δ₂ σ c c' a)
+LK δ δ₂ σ δC δB δA refl refl .refl refl pxz .pxz refl c c' q q' e kc kc' a r = J-pxz pxz (VarΣ-set refl pxz)
+  where
+    J-pxz : (pxz : _) (w₀ : refl ≡ pxz)
+          → subst (λ w → _≡_ {A = ⟦ ext _ _ δC ⟧T _} (⟦ δ ∘ σ ⟧Th a , tkR (δ ∘ σ) δC δA w kc a r)
+                                (⟦ δ ⟧Th (⟦ σ ⟧Th a) , tkR δ δC δB refl q (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r)))
+                  w₀ (comp-k₀ δ σ δC δB δA q e kc a r)
+            ∙ ≈K δ δ₂ δC δB refl refl refl c q q' (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r)
+            ≡ ≈K (δ ∘ σ) (δ₂ ∘ σ) δC δA pxz pxz refl c' kc kc' a r
+              ∙ subst (λ w → _≡_ {A = ⟦ ext _ _ δC ⟧T _} (⟦ δ₂ ∘ σ ⟧Th a , tkR (δ₂ ∘ σ) δC δA w kc' a r)
+                                  (⟦ δ₂ ⟧Th (⟦ σ ⟧Th a) , tkR δ₂ δC δB refl q' (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r)))
+                      w₀ (comp-k₀ δ₂ σ δC δB δA q' e kc' a r)
+    J-pxz .refl refl = LK₀ δ δ₂ σ δC δB δA c c' q q' e kc kc' a r
+
+cohL δ δ₂ tε c c' a = ≈-irr δ δ₂ c c' a ∙ sym (∙refl (≈ {σ = δ} {δ₂} c' a))
+cohL δ δ₂ (t-d σ) c c' (a , r) = cohL δ δ₂ σ c c' a
+cohL (t-d δ) (t-d δ₂) (t-k σ ex e) c c' (a , r) = cohL δ δ₂ σ c c' a
+cohL (t-k {x = y} {y = z} {δ = δC} {δ' = δB} δ ey q) (t-k δ₂ ey' q') (t-k {x = x} {δ' = δA} σ ex e) c c' (a , r) =
+  LK δ δ₂ σ δC δB δA (CodeV-sound x y ex) (CodeV-sound y z ey) (CodeV-sound y z ey') (VarΣ-set _ _)
+     (CodeV-sound x z (CodeV-trans x y z ex ey)) (CodeV-sound x z (CodeV-trans x y z ex ey')) (VarΣ-set _ _)
+     c c' q q' e _ _ a r
+-- the base of a composite of keeps
+fstC : {Γ : Con}{A B C D₁ D₂ D₃ : Ty Γ}{x : Var Γ D₁}{y : Var Γ D₂}{z : Var Γ D₃}{γ : ⟦ Γ ⟧C}
+       (δ : Thin B C)(σ : Thin A B)(δC : Thin C D₃)(δB : Thin B D₂)(δA : Thin A D₁)
+       (pxy : _≡_ {A = VarΣ Γ} (D₁ , x) (D₂ , y))(pyz : _≡_ {A = VarΣ Γ} (D₂ , y) (D₃ , z))
+       (pxz : _≡_ {A = VarΣ Γ} (D₁ , x) (D₃ , z))
+       (q : Code (δC ∘ δ) δB)(e : Code (δB ∘ σ) δA)(e' : Code (δC ∘ (δ ∘ σ)) δA)
+       (a : ⟦ A ⟧T γ)(r : Σ (⟦ D₁ ⟧T γ) (λ d → Σ (⟦ δA ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d)))
+     → cong fst (comp-k δ σ δC δB δA pxy pyz pxz q e e' a r) ≡ ⟦∘⟧ δ σ a
+fstC δ σ δC δB δA refl refl pxz q e e' a r = J-pxz pxz (VarΣ-set refl pxz)
+  where
+    J-pxz : (pxz : _) (w₀ : refl ≡ pxz)
+          → cong fst (subst (λ w → _≡_ {A = ⟦ ext _ _ δC ⟧T _} (⟦ δ ∘ σ ⟧Th a , tkR (δ ∘ σ) δC δA w e' a r)
+                                (⟦ δ ⟧Th (⟦ σ ⟧Th a) , tkR δ δC δB refl q (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r)))
+                             w₀ (comp-k₀ δ σ δC δB δA q e e' a r))
+            ≡ ⟦∘⟧ δ σ a
+    J-pxz .refl refl = pathK-fst (⟦∘⟧ δ σ a) _
+
+-- cohAs for three keeps, in stages: identify the generating variable
+-- paths, then the composite ones (loops), then compute
+module AKs {Γ : Con}{A B C Dt D : Ty Γ}{x : Var Γ D}{γ : ⟦ Γ ⟧C}
+           (ρ : Thin C Dt)(δ : Thin B C)(σ : Thin A B)(δD : Thin Dt D)(δC : Thin C D)(δB : Thin B D)(δA : Thin A D)
+           (qq : Code (δD ∘ ρ) δC)(q : Code (δC ∘ δ) δB)(e : Code (δB ∘ σ) δA)
+           (c : Code (ρ ∘ (δ ∘ σ)) ((ρ ∘ δ) ∘ σ))
+           (kc₁ : Code (δC ∘ (δ ∘ σ)) δA)(kc₂ : Code (δD ∘ (ρ ∘ (δ ∘ σ))) δA)
+           (kc₃ : Code (δD ∘ ((ρ ∘ δ) ∘ σ)) δA)(kc₄ : Code (δD ∘ (ρ ∘ δ)) δB)
+           (a : ⟦ A ⟧T γ)(r : Σ (⟦ D ⟧T γ) (λ d → Σ (⟦ δA ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d))) where
+
+  ρ' : (b : ⟦ C ⟧T γ) → _ → _
+  ρ' = λ b r' → ⟦ ρ ⟧Th b , tkR ρ δD δC refl qq b r'
+
+  AK₀ : comp-k₀ ρ (δ ∘ σ) δD δC δA qq kc₁ kc₂ a r
+        ∙ cong (λ t → ρ' (fst t) (snd t)) (comp-k₀ δ σ δC δB δA q e kc₁ a r)
+        ≡ ≈k {σ = ρ ∘ (δ ∘ σ)} {(ρ ∘ δ) ∘ σ} δD δA refl c kc₂ kc₃ a r
+          ∙ (comp-k₀ (ρ ∘ δ) σ δD δB δA kc₄ e kc₃ a r
+             ∙ comp-k₀ ρ δ δD δC δB qq q kc₄ (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r))
+  AK₀ =
+    cong (comp-k₀ ρ (δ ∘ σ) δD δC δA qq kc₁ kc₂ a r ∙_) (pathK-img ⟦ ρ ⟧Th (kp δD ρ δC qq) (⟦∘⟧ δ σ a) _)
+    ∙ pathK-∙∙ (grpdEq (isGrpdT D γ)) (⟦∘⟧ ρ (δ ∘ σ) a) (cong ⟦ ρ ⟧Th (⟦∘⟧ δ σ a))
+               (≈ {σ = ρ ∘ (δ ∘ σ)} {(ρ ∘ δ) ∘ σ} c a) (⟦∘⟧ (ρ ∘ δ) σ a ∙ ⟦∘⟧ ρ δ (⟦ σ ⟧Th a)) _ _ _ _
+               (cohAs ρ δ σ c a)
+    ∙ cong (≈k {σ = ρ ∘ (δ ∘ σ)} {(ρ ∘ δ) ∘ σ} δD δA refl c kc₂ kc₃ a r ∙_)
+           (sym (pathK-comp (⟦∘⟧ (ρ ∘ δ) σ a) (⟦∘⟧ ρ δ (⟦ σ ⟧Th a)) _ _))
+
+  -- the loops pxw, pxw' (and the witness w between them)
+  AK₂ : (pxw pxw' : _≡_ {A = VarΣ Γ} (D , x) (D , x))(w₃ : refl ≡ pxw)(w₄ : refl ≡ pxw')(w : pxw ≡ pxw')
+      → subst (λ w → _≡_ {A = ⟦ ext _ _ δD ⟧T _} (⟦ ρ ∘ (δ ∘ σ) ⟧Th a , tkR (ρ ∘ (δ ∘ σ)) δD δA w kc₂ a r)
+                       (⟦ ρ ⟧Th (⟦ δ ∘ σ ⟧Th a) , tkR ρ δD δC refl qq (⟦ δ ∘ σ ⟧Th a) (tkR (δ ∘ σ) δC δA refl kc₁ a r)))
+              w₃ (comp-k₀ ρ (δ ∘ σ) δD δC δA qq kc₁ kc₂ a r)
+        ∙ cong (λ t → ρ' (fst t) (snd t)) (comp-k₀ δ σ δC δB δA q e kc₁ a r)
+        ≡ ≈K (ρ ∘ (δ ∘ σ)) ((ρ ∘ δ) ∘ σ) δD δA pxw pxw' w c kc₂ kc₃ a r
+          ∙ (subst (λ w → _≡_ {A = ⟦ ext _ _ δD ⟧T _} (⟦ (ρ ∘ δ) ∘ σ ⟧Th a , tkR ((ρ ∘ δ) ∘ σ) δD δA w kc₃ a r)
+                             (⟦ ρ ∘ δ ⟧Th (⟦ σ ⟧Th a) , tkR (ρ ∘ δ) δD δB refl kc₄ (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r)))
+                   w₄ (comp-k₀ (ρ ∘ δ) σ δD δB δA kc₄ e kc₃ a r)
+             ∙ comp-k₀ ρ δ δD δC δB qq q kc₄ (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r))
+  AK₂ .refl .refl refl refl w =
+    subst (λ w → comp-k₀ ρ (δ ∘ σ) δD δC δA qq kc₁ kc₂ a r
+                 ∙ cong (λ t → ρ' (fst t) (snd t)) (comp-k₀ δ σ δC δB δA q e kc₁ a r)
+                 ≡ ≈K (ρ ∘ (δ ∘ σ)) ((ρ ∘ δ) ∘ σ) δD δA refl refl w c kc₂ kc₃ a r
+                   ∙ (comp-k₀ (ρ ∘ δ) σ δD δB δA kc₄ e kc₃ a r
+                      ∙ comp-k₀ ρ δ δD δC δB qq q kc₄ (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r)))
+          (set→2prop VarΣ-set refl w) AK₀
+open AKs using (AK₂)
+
+AK : {Γ : Con}{A B C Dt D₁ D₂ D₃ D₄ : Ty Γ}{x : Var Γ D₁}{y : Var Γ D₂}{z : Var Γ D₃}{w : Var Γ D₄}{γ : ⟦ Γ ⟧C}
+     (ρ : Thin C Dt)(δ : Thin B C)(σ : Thin A B)(δD : Thin Dt D₄)(δC : Thin C D₃)(δB : Thin B D₂)(δA : Thin A D₁)
+     (pxy : _≡_ {A = VarΣ Γ} (D₁ , x) (D₂ , y))(pyz : _≡_ {A = VarΣ Γ} (D₂ , y) (D₃ , z))
+     (pzw : _≡_ {A = VarΣ Γ} (D₃ , z) (D₄ , w))
+     (pxz : _≡_ {A = VarΣ Γ} (D₁ , x) (D₃ , z))(pyw : _≡_ {A = VarΣ Γ} (D₂ , y) (D₄ , w))
+     (pxw pxw' : _≡_ {A = VarΣ Γ} (D₁ , x) (D₄ , w))(wxw : pxw ≡ pxw')
+     (qq : Code (δD ∘ ρ) δC)(q : Code (δC ∘ δ) δB)(e : Code (δB ∘ σ) δA)
+     (c : Code (ρ ∘ (δ ∘ σ)) ((ρ ∘ δ) ∘ σ))
+     (kc₁ : Code (δC ∘ (δ ∘ σ)) δA)(kc₂ : Code (δD ∘ (ρ ∘ (δ ∘ σ))) δA)
+     (kc₃ : Code (δD ∘ ((ρ ∘ δ) ∘ σ)) δA)(kc₄ : Code (δD ∘ (ρ ∘ δ)) δB)
+     (a : ⟦ A ⟧T γ)(r : Σ (⟦ D₁ ⟧T γ) (λ d → Σ (⟦ δA ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d)))
+   → comp-k ρ (δ ∘ σ) δD δC δA pxz pzw pxw qq kc₁ kc₂ a r
+     ∙ cong (λ t → ⟦ ρ ⟧Th (fst t) , tkR ρ δD δC pzw qq (fst t) (snd t)) (comp-k δ σ δC δB δA pxy pyz pxz q e kc₁ a r)
+     ≡ ≈K (ρ ∘ (δ ∘ σ)) ((ρ ∘ δ) ∘ σ) δD δA pxw pxw' wxw c kc₂ kc₃ a r
+       ∙ (comp-k (ρ ∘ δ) σ δD δB δA pxy pyw pxw' kc₄ e kc₃ a r
+          ∙ comp-k ρ δ δD δC δB pyz pzw pyw qq q kc₄ (⟦ σ ⟧Th a) (tkR σ δB δA pxy e a r))
+AK ρ δ σ δD δC δB δA refl refl refl pxz pyw pxw pxw' wxw qq q e c kc₁ kc₂ kc₃ kc₄ a r =
+  J₁ pxz (VarΣ-set refl pxz) pyw (VarΣ-set refl pyw)
+  where
+    J₁ : (pxz : _)(w₁ : refl ≡ pxz)(pyw : _)(w₂ : refl ≡ pyw)
+       → comp-k ρ (δ ∘ σ) δD δC δA pxz refl pxw qq kc₁ kc₂ a r
+         ∙ cong (λ t → ⟦ ρ ⟧Th (fst t) , tkR ρ δD δC refl qq (fst t) (snd t))
+                (subst (λ w → _≡_ {A = ⟦ ext _ _ δC ⟧T _} (⟦ δ ∘ σ ⟧Th a , tkR (δ ∘ σ) δC δA w kc₁ a r)
+                                  (⟦ δ ⟧Th (⟦ σ ⟧Th a) , tkR δ δC δB refl q (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r)))
+                       w₁ (comp-k₀ δ σ δC δB δA q e kc₁ a r))
+         ≡ ≈K (ρ ∘ (δ ∘ σ)) ((ρ ∘ δ) ∘ σ) δD δA pxw pxw' wxw c kc₂ kc₃ a r
+           ∙ (comp-k (ρ ∘ δ) σ δD δB δA refl pyw pxw' kc₄ e kc₃ a r
+              ∙ subst (λ w → _≡_ {A = ⟦ ext _ _ δD ⟧T _} (⟦ ρ ∘ δ ⟧Th (⟦ σ ⟧Th a) , tkR (ρ ∘ δ) δD δB w kc₄ (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r))
+                                (⟦ ρ ⟧Th (⟦ δ ⟧Th (⟦ σ ⟧Th a)) , tkR ρ δD δC refl qq (⟦ δ ⟧Th (⟦ σ ⟧Th a))
+                                                                  (tkR δ δC δB refl q (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r))))
+                      w₂ (comp-k₀ ρ δ δD δC δB qq q kc₄ (⟦ σ ⟧Th a) (tkR σ δB δA refl e a r)))
+    J₁ .refl refl .refl refl =
+      AK₂ ρ δ σ δD δC δB δA qq q e c kc₁ kc₂ kc₃ kc₄ a r pxw pxw' (VarΣ-set refl pxw) (VarΣ-set refl pxw') wxw
+
+cohAs ρ δ tε c a = ∙refl (⟦∘⟧ ρ δ a) ∙ cong (_∙ ⟦∘⟧ ρ δ a) (sym (refl≈ (ρ ∘ δ) c a))
+cohAs ρ δ (t-d σ) c (a , r) = cohAs ρ δ σ c a
+cohAs ρ (t-d δ) (t-k σ ex e) c (a , r) = cohAs ρ δ σ c a
+cohAs (t-d ρ) (t-k {x = y} {y = z} {δ = δC} {δ' = δB} δ ey q) (t-k {x = x} {δ' = δA} σ ex e) c (a , r) =
+  cong (⟦∘⟧ ρ (δ ∘ σ) a ∙_)
+       (sym (cong-∘ ⟦ ρ ⟧Th fst (comp-k δ σ δC δB δA (CodeV-sound x y ex) (CodeV-sound y z ey)
+                                          (CodeV-sound x z (CodeV-trans x y z ex ey)) q e _ a r))
+        ∙ cong (cong ⟦ ρ ⟧Th) (fstC δ σ δC δB δA _ _ _ q e _ a r))
+  ∙ cohAs ρ δ σ c a
+cohAs (t-k {x = z} {y = w} {δ = δD} {δ' = δC} ρ ez qq) (t-k {x = y} {δ' = δB} δ ey q) (t-k {x = x} {δ' = δA} σ ex e) c (a , r) =
+  AK ρ δ σ δD δC δB δA (CodeV-sound x y ex) (CodeV-sound y z ey) (CodeV-sound z w ez)
+     (CodeV-sound x z (CodeV-trans x y z ex ey)) (CodeV-sound y w (CodeV-trans y z w ey ez))
+     (CodeV-sound x w (CodeV-trans x z w (CodeV-trans x y z ex ey) ez))
+     (CodeV-sound x w (CodeV-trans x y w ex (CodeV-trans y z w ey ez))) (VarΣ-set _ _)
+     qq q e c _ _ _ _ a r
 cohWN = {!!}
 cohW∘ = {!!}
