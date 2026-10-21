@@ -104,6 +104,10 @@ eqLevel g u v = P.subst (H.isOfHLevel 3) (E.PathPathEq {x = u} {y = v}) (H.isOfH
 grpdEq : {D : Set} → P.isGroupoid D → isGrpdEq D
 grpdEq g {u} {v} {q} {q'} s s' = E.pathToEq (P.subst P.isProp (E.PathPathEq {x = q} {y = q'}) (eqIsSet g u v q q') s s')
 
+-- in a 2-type, 3-paths are unique
+lev3 : {D : Set} → H.isOfHLevel 4 D → {u w : D}{p p' : u ≡ w}{s s' : p ≡ p'}(H H' : s ≡ s') → H ≡ H'
+lev3 g H H' = grpdEq (eqLevel g _ _) H H'
+
 -- in a set, 2-paths are unique
 set→2prop : {X : Set}{a b : X}(h : (q q' : a ≡ b) → q ≡ q'){q q' : a ≡ b}(w w' : q ≡ q') → w ≡ w'
 set→2prop {a = a} {b} h {q} {q'} w w' = canon w ∙ sym (canon w')
@@ -178,6 +182,37 @@ compS : {B D : Set}{f : B → D}{b b' b'' : B}{d : D}{q : f b ≡ d}{q' : f b' �
       → sym (cong f (r ∙ r')) ∙ q ≡ q''
 compS refl refl s s' = s ∙ s'
 
+-- whiskering a stored-path cell by the stored path q
+whS : {B D : Set}(f : B → D){b b' : B}{d d₀ : D}{k : f b ≡ d}{k' : f b' ≡ d}(q : d ≡ d₀)
+      (r : b ≡ b') → sym (cong f r) ∙ k ≡ k' → sym (cong f r) ∙ (k ∙ q) ≡ k' ∙ q
+whS f {k = k} q r N = sym (∙-assoc (sym (cong f r)) k q) ∙ cong (_∙ q) N
+
+whS-T : {B D : Set}(f : B → D){b b' b'' : B}{d d₀ : D}{k : f b ≡ d}{k' : f b' ≡ d}{k'' : f b'' ≡ d}
+        (q : d ≡ d₀)(r₁ : b ≡ b')(r₂ : b' ≡ b'')(r₃ : b ≡ b'')
+        (N₁ : sym (cong f r₁) ∙ k ≡ k')(N₂ : sym (cong f r₂) ∙ k' ≡ k'')(N₃ : sym (cong f r₃) ∙ k ≡ k'')
+        (H : r₁ ∙ r₂ ≡ r₃)
+      → subst (λ r → sym (cong f r) ∙ k ≡ k'') H (compS r₁ r₂ N₁ N₂) ≡ N₃
+      → subst (λ r → sym (cong f r) ∙ (k ∙ q) ≡ k'' ∙ q) H
+              (compS r₁ r₂ (whS f q r₁ N₁) (whS f q r₂ N₂)) ≡ whS f q r₃ N₃
+whS-T f q refl refl .refl N₁ N₂ .(N₁ ∙ N₂) refl refl = sym (cong-∙ (_∙ q) N₁ N₂)
+
+-- the stored-path cell N of a code composite, from the solved forms of RT and T3
+lemNT : {B X : Set}(f : B → X){b b' b'' : B}{x y z v : X}
+        (A₀ : x ≡ f b)(B₀ : y ≡ f b')(C₀ : z ≡ f b'')
+        (r₁ : b ≡ b')(r₂ : b' ≡ b'')(r₃ : b ≡ b'')(H : r₁ ∙ r₂ ≡ r₃)
+        (c' : x ≡ y)(d' : y ≡ z)(cd' : x ≡ z)(T' : c' ∙ d' ≡ cd')
+        (e : x ≡ v)(e' : y ≡ v)(e'' : z ≡ v)
+        (Rc : A₀ ∙ cong f r₁ ≡ c' ∙ B₀)(Rd : B₀ ∙ cong f r₂ ≡ d' ∙ C₀)(Rcd : A₀ ∙ cong f r₃ ≡ cd' ∙ C₀)
+        (Tc : c' ∙ e' ≡ e)(Td : d' ∙ e'' ≡ e')(Tcd : cd' ∙ e'' ≡ e)
+      → sym (cong (λ r → A₀ ∙ cong f r) H) ∙ cong (A₀ ∙_) (cong-∙ f r₁ r₂)
+        ∙ sym (∙-assoc A₀ (cong f r₁) (cong f r₂)) ∙ cong (_∙ cong f r₂) Rc ∙ ∙-assoc c' B₀ (cong f r₂)
+        ∙ cong (c' ∙_) Rd ∙ sym (∙-assoc c' d' C₀) ∙ cong (_∙ C₀) T' ≡ Rcd
+      → sym (cong (_∙ e'') T') ∙ ∙-assoc c' d' e'' ∙ cong (c' ∙_) Td ∙ Tc ≡ Tcd
+      → subst (λ r → sym (cong f r) ∙ (sym A₀ ∙ e) ≡ sym C₀ ∙ e'') H
+              (compS r₁ r₂ (lemN A₀ (cong f r₁) c' B₀ e e' Rc Tc) (lemN B₀ (cong f r₂) d' C₀ e' e'' Rd Td))
+        ≡ lemN A₀ (cong f r₃) cd' C₀ e e'' Rcd Tcd
+lemNT f refl _ _ refl refl _ refl refl refl _ refl _ _ e'' refl refl _ refl refl _ refl refl = refl
+
 pathK-comp : {B D : Set}{f : B → D}{V : D → Set}{b b' b'' : B}{d : D}
              {q : f b ≡ d}{q' : f b' ≡ d}{q'' : f b'' ≡ d}{v : V d}
              (r : b ≡ b')(r' : b' ≡ b'')(s : sym (cong f r) ∙ q ≡ q')(s' : sym (cong f r') ∙ q' ≡ q'')
@@ -207,6 +242,27 @@ pathK-∙≡ : {B D : Set}{f : B → D}{V : D → Set}{b b' b'' : B}{d : D}
          → pathK {V = V} {v = v} r s ∙ pathK r' s' ≡ pathK r'' s''
 pathK-∙≡ {b = b} {d = d} {v = v} refl refl .refl s s' s'' refl H =
   sym (cong-∙ (λ q → b , d , q , v) s s') ∙ cong (cong (λ q → b , d , q , v)) H
+
+-- 3-cells between pathK pastings: the base 3-cell suffices, since the fibre is a 2-type
+pathK-T3 : {B D : Set}{f : B → D}{V : D → Set}{b₁ b₂ b₃ b₄ : B}{d : D}
+           {q₁ : f b₁ ≡ d}{q₂ : f b₂ ≡ d}{q₃ : f b₃ ≡ d}{q₄ : f b₄ ≡ d}{v : V d}
+           (lev : {u w : D}{p p' : u ≡ w}{s s' : p ≡ p'}(H H' : s ≡ s') → H ≡ H')
+           (r₁ : b₁ ≡ b₂)(r₂ : b₂ ≡ b₃)(r₃ : b₃ ≡ b₄)(r₁₂ : b₁ ≡ b₃)(r₂₃ : b₂ ≡ b₄)(r₁₂₃ : b₁ ≡ b₄)
+           (s₁ : sym (cong f r₁) ∙ q₁ ≡ q₂)(s₂ : sym (cong f r₂) ∙ q₂ ≡ q₃)(s₃ : sym (cong f r₃) ∙ q₃ ≡ q₄)
+           (s₁₂ : sym (cong f r₁₂) ∙ q₁ ≡ q₃)(s₂₃ : sym (cong f r₂₃) ∙ q₂ ≡ q₄)(s₁₂₃ : sym (cong f r₁₂₃) ∙ q₁ ≡ q₄)
+           (h₁₂ : r₁ ∙ r₂ ≡ r₁₂)(h₂₃ : r₂ ∙ r₃ ≡ r₂₃)(h₁ : r₁ ∙ r₂₃ ≡ r₁₂₃)(h₃ : r₁₂ ∙ r₃ ≡ r₁₂₃)
+           (H₁₂ : subst (λ r → sym (cong f r) ∙ q₁ ≡ q₃) h₁₂ (compS r₁ r₂ s₁ s₂) ≡ s₁₂)
+           (H₂₃ : subst (λ r → sym (cong f r) ∙ q₂ ≡ q₄) h₂₃ (compS r₂ r₃ s₂ s₃) ≡ s₂₃)
+           (H₁ : subst (λ r → sym (cong f r) ∙ q₁ ≡ q₄) h₁ (compS r₁ r₂₃ s₁ s₂₃) ≡ s₁₂₃)
+           (H₃ : subst (λ r → sym (cong f r) ∙ q₁ ≡ q₄) h₃ (compS r₁₂ r₃ s₁₂ s₃) ≡ s₁₂₃)
+         → sym (cong (_∙ r₃) h₁₂) ∙ ∙-assoc r₁ r₂ r₃ ∙ cong (r₁ ∙_) h₂₃ ∙ h₁ ≡ h₃
+         → sym (cong (_∙ pathK r₃ s₃) (pathK-∙≡ {V = V} {v = v} r₁ r₂ r₁₂ s₁ s₂ s₁₂ h₁₂ H₁₂))
+           ∙ ∙-assoc (pathK r₁ s₁) (pathK r₂ s₂) (pathK r₃ s₃)
+           ∙ cong (pathK r₁ s₁ ∙_) (pathK-∙≡ r₂ r₃ r₂₃ s₂ s₃ s₂₃ h₂₃ H₂₃)
+           ∙ pathK-∙≡ r₁ r₂₃ r₁₂₃ s₁ s₂₃ s₁₂₃ h₁ H₁
+           ≡ pathK-∙≡ r₁₂ r₃ r₁₂₃ s₁₂ s₃ s₁₂₃ h₃ H₃
+pathK-T3 {b₁ = b} {d = d} {v = v} lev refl refl refl _ _ _ refl refl refl _ _ _ refl refl refl _ refl refl refl H₃ refl =
+  cong (cong (cong (λ q → b , d , q , v))) (sym (lev H₃ refl))
 
 -- the interpretation ----------------------------------------------------------------
 
@@ -306,6 +362,28 @@ cohW∘ : {Γ : Con}{A B C : Ty Γ}(δ : Thin B C)(σ : Thin A B){B₀ : Ty Γ}
         ∙ (unwk-nat (δ ∘ σ) a ∙ ⟦∘⟧ δ σ (unwk A a))
         ≡ cong (unwk C) (⟦∘⟧ (wkThin δ p) (wkThin σ p) a)
           ∙ (unwk-nat δ (⟦ wkThin σ p ⟧Th a) ∙ cong ⟦ δ ⟧Th (unwk-nat σ a))
+
+-- 3-cells: T is associative, R is functorial in codes (solved for the composite cell)
+{-# TERMINATING #-}
+cohT3 : {Γ : Con}{A C : Ty Γ}(σ τ ρ μ : Thin A C)(c₁ : Code σ τ)(c₂ : Code τ ρ)(c₁₂ : Code σ ρ)
+        (c₃ : Code ρ μ)(c₂₃ : Code τ μ)(c₁₂₃ : Code σ μ){γ : ⟦ Γ ⟧C}(a : ⟦ A ⟧T γ)
+      → sym (cong (_∙ ≈ {σ = ρ} {μ} c₃ a) (cohT σ τ ρ c₁ c₂ c₁₂ a))
+        ∙ ∙-assoc (≈ {σ = σ} {τ} c₁ a) (≈ {σ = τ} {ρ} c₂ a) (≈ {σ = ρ} {μ} c₃ a)
+        ∙ cong (≈ {σ = σ} {τ} c₁ a ∙_) (cohT τ ρ μ c₂ c₃ c₂₃ a) ∙ cohT σ τ μ c₁ c₂₃ c₁₂₃ a
+        ≡ cohT σ ρ μ c₁₂ c₃ c₁₂₃ a
+{-# TERMINATING #-}
+cohRT : {Γ : Con}{A B C : Ty Γ}(δ : Thin B C)(σ τ ρ : Thin A B)(c : Code σ τ)(d : Code τ ρ)(cd : Code σ ρ)
+        (c' : Code (δ ∘ σ) (δ ∘ τ))(d' : Code (δ ∘ τ) (δ ∘ ρ))(cd' : Code (δ ∘ σ) (δ ∘ ρ))
+        {γ : ⟦ Γ ⟧C}(a : ⟦ A ⟧T γ)
+      → sym (cong (λ r → ⟦∘⟧ δ σ a ∙ cong ⟦ δ ⟧Th r) (cohT σ τ ρ c d cd a))
+        ∙ cong (⟦∘⟧ δ σ a ∙_) (cong-∙ ⟦ δ ⟧Th (≈ {σ = σ} {τ} c a) (≈ {σ = τ} {ρ} d a))
+        ∙ sym (∙-assoc (⟦∘⟧ δ σ a) (cong ⟦ δ ⟧Th (≈ {σ = σ} {τ} c a)) (cong ⟦ δ ⟧Th (≈ {σ = τ} {ρ} d a)))
+        ∙ cong (_∙ cong ⟦ δ ⟧Th (≈ {σ = τ} {ρ} d a)) (cohR δ σ τ c c' a)
+        ∙ ∙-assoc (≈ {σ = δ ∘ σ} {δ ∘ τ} c' a) (⟦∘⟧ δ τ a) (cong ⟦ δ ⟧Th (≈ {σ = τ} {ρ} d a))
+        ∙ cong (≈ {σ = δ ∘ σ} {δ ∘ τ} c' a ∙_) (cohR δ τ ρ d d' a)
+        ∙ sym (∙-assoc (≈ {σ = δ ∘ σ} {δ ∘ τ} c' a) (≈ {σ = δ ∘ τ} {δ ∘ ρ} d' a) (⟦∘⟧ δ ρ a))
+        ∙ cong (_∙ ⟦∘⟧ δ ρ a) (cohT (δ ∘ σ) (δ ∘ τ) (δ ∘ ρ) c' d' cd' a)
+        ≡ cohR δ σ ρ cd cd' a
 
 -- the coherences used by the interpretation (2-cells) -------------------------------
 
@@ -469,18 +547,90 @@ TK₀ : {Γ : Con}{A B C : Ty Γ}{x : Var Γ C}{γ : ⟦ Γ ⟧C}
     → ≈K σ τ δ δ' refl refl refl c e e' a r ∙ ≈K τ ρ δ δ' refl refl refl d e' e'' a r ≡ ≈K σ ρ δ δ' refl refl refl cd e e'' a r
 TK₀ {C = C} {γ = γ} σ τ ρ δ δ' c d cd e e' e'' a (d₀ , refl , v) =
   pathK-∙≡ (≈ {σ = σ} {τ} c a) (≈ {σ = τ} {ρ} d a) (≈ {σ = σ} {ρ} cd a) _ _ _
-           (cohT σ τ ρ c d cd a) {!!}
-TK σ τ ρ δ δ' refl .refl .refl refl refl w₁₃ c d cd e e' e'' a r =
+           (cohT σ τ ρ c d cd a)
+           (let c' = ≡→Code (cong (δ ∘_) (Code-sound σ τ c))
+                d' = ≡→Code (cong (δ ∘_) (Code-sound τ ρ d))
+                cd' = ≡→Code (cong (δ ∘_) (Code-sound σ ρ cd))
+            in whS-T ⟦ δ ⟧Th refl (≈ {σ = σ} {τ} c a) (≈ {σ = τ} {ρ} d a) (≈ {σ = σ} {ρ} cd a)
+                 (cohN δ σ τ δ' c e e' a) (cohN δ τ ρ δ' d e' e'' a) (cohN δ σ ρ δ' cd e e'' a)
+                 (cohT σ τ ρ c d cd a)
+                 (lemNT ⟦ δ ⟧Th (⟦∘⟧ δ σ a) (⟦∘⟧ δ τ a) (⟦∘⟧ δ ρ a)
+                    (≈ {σ = σ} {τ} c a) (≈ {σ = τ} {ρ} d a) (≈ {σ = σ} {ρ} cd a) (cohT σ τ ρ c d cd a)
+                    (≈ {σ = δ ∘ σ} {δ ∘ τ} c' a) (≈ {σ = δ ∘ τ} {δ ∘ ρ} d' a) (≈ {σ = δ ∘ σ} {δ ∘ ρ} cd' a)
+                    (cohT (δ ∘ σ) (δ ∘ τ) (δ ∘ ρ) c' d' cd' a)
+                    (≈ {σ = δ ∘ σ} {δ'} e a) (≈ {σ = δ ∘ τ} {δ'} e' a) (≈ {σ = δ ∘ ρ} {δ'} e'' a)
+                    (cohR δ σ τ c c' a) (cohR δ τ ρ d d' a) (cohR δ σ ρ cd cd' a)
+                    (cohT (δ ∘ σ) (δ ∘ τ) δ' c' e' e a) (cohT (δ ∘ τ) (δ ∘ ρ) δ' d' e'' e' a)
+                    (cohT (δ ∘ σ) (δ ∘ ρ) δ' cd' e'' e a)
+                    (cohRT δ σ τ ρ c d cd c' d' cd' a)
+                    (cohT3 (δ ∘ σ) (δ ∘ τ) (δ ∘ ρ) δ' c' d' cd' e'' e' e a)))
+TKw : {Γ : Con}{A B C : Ty Γ}{x : Var Γ C}{γ : ⟦ Γ ⟧C}
+      (σ τ ρ : Thin A B)(δ : Thin B C)(δ' : Thin A C)(w : _≡_ {A = (C , x) ≡ (C , x)} refl refl)(π : refl ≡ w)
+      (c : Code σ τ)(d : Code τ ρ)(cd : Code σ ρ)
+      (e : Code (δ ∘ σ) δ')(e' : Code (δ ∘ τ) δ')(e'' : Code (δ ∘ ρ) δ')(a : ⟦ A ⟧T γ)
+      (r : Σ (⟦ C ⟧T γ) (λ d → Σ (⟦ δ' ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d)))
+    → ≈K σ τ δ δ' refl refl refl c e e' a r ∙ ≈K τ ρ δ δ' refl refl refl d e' e'' a r ≡ ≈K σ ρ δ δ' refl refl w cd e e'' a r
+TKw σ τ ρ δ δ' w π c d cd e e' e'' a r =
   subst (λ w → ≈K σ τ δ δ' refl refl refl c e e' a r ∙ ≈K τ ρ δ δ' refl refl refl d e' e'' a r
                ≡ ≈K σ ρ δ δ' refl refl w cd e e'' a r)
-        (set→2prop VarΣ-set refl w₁₃)
-        (TK₀ σ τ ρ δ δ' c d cd e e' e'' a r)
+        π (TK₀ σ τ ρ δ δ' c d cd e e' e'' a r)
+TK σ τ ρ δ δ' refl .refl .refl refl refl w₁₃ c d cd e e' e'' a r =
+  TKw σ τ ρ δ δ' w₁₃ (set→2prop VarΣ-set refl w₁₃) c d cd e e' e'' a r
 
 cohT tε tε tε c d cd a = refl
 cohT (t-d σ) (t-d τ) (t-d ρ) c d cd (a , r) = cohT σ τ ρ c d cd a
 cohT (t-k {x = x} {y} {δ} {δ'} σ ex e) (t-k τ ex' e') (t-k ρ ex'' e'') c d cd (a , r) =
   TK σ τ ρ δ δ' (CodeV-sound x y ex) (CodeV-sound x y ex') (CodeV-sound x y ex'')
      (VarΣ-set _ _) (VarΣ-set _ _) (VarΣ-set _ _) c d cd e e' e'' a r
+
+-- T3 on keeps
+module T3Ks {Γ : Con}{A B C : Ty Γ}{x : Var Γ C}{γ : ⟦ Γ ⟧C}
+            (σ τ ρ μ : Thin A B)(δ : Thin B C)(δ' : Thin A C)
+            (c₁ : Code σ τ)(c₂ : Code τ ρ)(c₁₂ : Code σ ρ)(c₃ : Code ρ μ)(c₂₃ : Code τ μ)(c₁₂₃ : Code σ μ)
+            (e₁ : Code (δ ∘ σ) δ')(e₂ : Code (δ ∘ τ) δ')(e₃ : Code (δ ∘ ρ) δ')(e₄ : Code (δ ∘ μ) δ')
+            (a : ⟦ A ⟧T γ) where
+  R = Σ (⟦ C ⟧T γ) (λ d → Σ (⟦ δ' ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d))
+  Loop = _≡_ {A = _≡_ {A = VarΣ Γ} (C , x) (C , x)} refl refl
+
+  T3K₂ : (w₁₄ : Loop)(π : refl ≡ w₁₄)(r : R)
+       → sym (cong (_∙ ≈K ρ μ δ δ' refl refl refl c₃ e₃ e₄ a r) (TK₀ σ τ ρ δ δ' c₁ c₂ c₁₂ e₁ e₂ e₃ a r))
+         ∙ ∙-assoc (≈K σ τ δ δ' refl refl refl c₁ e₁ e₂ a r) (≈K τ ρ δ δ' refl refl refl c₂ e₂ e₃ a r)
+                   (≈K ρ μ δ δ' refl refl refl c₃ e₃ e₄ a r)
+         ∙ cong (≈K σ τ δ δ' refl refl refl c₁ e₁ e₂ a r ∙_) (TK₀ τ ρ μ δ δ' c₂ c₃ c₂₃ e₂ e₃ e₄ a r)
+         ∙ TKw σ τ μ δ δ' w₁₄ π c₁ c₂₃ c₁₂₃ e₁ e₂ e₄ a r
+         ≡ TKw σ ρ μ δ δ' w₁₄ π c₁₂ c₃ c₁₂₃ e₁ e₃ e₄ a r
+  T3K₂ .refl refl (d₀ , refl , v) =
+    pathK-T3 (lev3 (isGrpdT C γ))
+      (≈ {σ = σ} {τ} c₁ a) (≈ {σ = τ} {ρ} c₂ a) (≈ {σ = ρ} {μ} c₃ a)
+      (≈ {σ = σ} {ρ} c₁₂ a) (≈ {σ = τ} {μ} c₂₃ a) (≈ {σ = σ} {μ} c₁₂₃ a) _ _ _ _ _ _
+      (cohT σ τ ρ c₁ c₂ c₁₂ a) (cohT τ ρ μ c₂ c₃ c₂₃ a) (cohT σ τ μ c₁ c₂₃ c₁₂₃ a) (cohT σ ρ μ c₁₂ c₃ c₁₂₃ a)
+      _ _ _ _ (cohT3 σ τ ρ μ c₁ c₂ c₁₂ c₃ c₂₃ c₁₂₃ a)
+
+  T3K₁ : (w₁₃ w₂₄ w₁₄ : Loop)(π₁₃ : refl ≡ w₁₃)(π₂₄ : refl ≡ w₂₄)(r : R)
+       → sym (cong (_∙ ≈K ρ μ δ δ' refl refl refl c₃ e₃ e₄ a r) (TKw σ τ ρ δ δ' w₁₃ π₁₃ c₁ c₂ c₁₂ e₁ e₂ e₃ a r))
+         ∙ ∙-assoc (≈K σ τ δ δ' refl refl refl c₁ e₁ e₂ a r) (≈K τ ρ δ δ' refl refl refl c₂ e₂ e₃ a r)
+                   (≈K ρ μ δ δ' refl refl refl c₃ e₃ e₄ a r)
+         ∙ cong (≈K σ τ δ δ' refl refl refl c₁ e₁ e₂ a r ∙_) (TKw τ ρ μ δ δ' w₂₄ π₂₄ c₂ c₃ c₂₃ e₂ e₃ e₄ a r)
+         ∙ TK σ τ μ δ δ' refl refl refl refl w₂₄ w₁₄ c₁ c₂₃ c₁₂₃ e₁ e₂ e₄ a r
+         ≡ TK σ ρ μ δ δ' refl refl refl w₁₃ refl w₁₄ c₁₂ c₃ c₁₂₃ e₁ e₃ e₄ a r
+  T3K₁ .refl .refl w₁₄ refl refl r = T3K₂ w₁₄ (set→2prop VarΣ-set refl w₁₄) r
+
+T3K : {Γ : Con}{A B C C' : Ty Γ}{x : Var Γ C}{y : Var Γ C'}{γ : ⟦ Γ ⟧C}
+      (σ τ ρ μ : Thin A B)(δ : Thin B C')(δ' : Thin A C)
+      (p₁ p₂ p₃ p₄ : _≡_ {A = VarΣ Γ} (C , x) (C' , y))
+      (w₁₂ : p₁ ≡ p₂)(w₂₃ : p₂ ≡ p₃)(w₁₃ : p₁ ≡ p₃)(w₃₄ : p₃ ≡ p₄)(w₂₄ : p₂ ≡ p₄)(w₁₄ : p₁ ≡ p₄)
+      (c₁ : Code σ τ)(c₂ : Code τ ρ)(c₁₂ : Code σ ρ)(c₃ : Code ρ μ)(c₂₃ : Code τ μ)(c₁₂₃ : Code σ μ)
+      (e₁ : Code (δ ∘ σ) δ')(e₂ : Code (δ ∘ τ) δ')(e₃ : Code (δ ∘ ρ) δ')(e₄ : Code (δ ∘ μ) δ')(a : ⟦ A ⟧T γ)
+      (r : Σ (⟦ C ⟧T γ) (λ d → Σ (⟦ δ' ⟧Th a ≡ d) (λ _ → ⟦ x ⟧V γ d)))
+    → sym (cong (_∙ ≈K ρ μ δ δ' p₃ p₄ w₃₄ c₃ e₃ e₄ a r) (TK σ τ ρ δ δ' p₁ p₂ p₃ w₁₂ w₂₃ w₁₃ c₁ c₂ c₁₂ e₁ e₂ e₃ a r))
+      ∙ ∙-assoc (≈K σ τ δ δ' p₁ p₂ w₁₂ c₁ e₁ e₂ a r) (≈K τ ρ δ δ' p₂ p₃ w₂₃ c₂ e₂ e₃ a r)
+                (≈K ρ μ δ δ' p₃ p₄ w₃₄ c₃ e₃ e₄ a r)
+      ∙ cong (≈K σ τ δ δ' p₁ p₂ w₁₂ c₁ e₁ e₂ a r ∙_) (TK τ ρ μ δ δ' p₂ p₃ p₄ w₂₃ w₃₄ w₂₄ c₂ c₃ c₂₃ e₂ e₃ e₄ a r)
+      ∙ TK σ τ μ δ δ' p₁ p₂ p₄ w₁₂ w₂₄ w₁₄ c₁ c₂₃ c₁₂₃ e₁ e₂ e₄ a r
+      ≡ TK σ ρ μ δ δ' p₁ p₃ p₄ w₁₃ w₃₄ w₁₄ c₁₂ c₃ c₁₂₃ e₁ e₃ e₄ a r
+T3K σ τ ρ μ δ δ' refl .refl .refl .refl refl refl w₁₃ refl w₂₄ w₁₄ c₁ c₂ c₁₂ c₃ c₂₃ c₁₂₃ e₁ e₂ e₃ e₄ a r =
+  T3Ks.T3K₁ σ τ ρ μ δ δ' c₁ c₂ c₁₂ c₃ c₂₃ c₁₂₃ e₁ e₂ e₃ e₄ a w₁₃ w₂₄ w₁₄
+            (set→2prop VarΣ-set refl w₁₃) (set→2prop VarΣ-set refl w₂₄) r
 -- the code path of a loop is trivial
 refl≈ : {Γ : Con}{A C : Ty Γ}(σ : Thin A C)(c : Code σ σ){γ : ⟦ Γ ⟧C}(a : ⟦ A ⟧T γ) → ≈ {σ = σ} {σ} c a ≡ refl
 refl≈ σ c a = idem (≈ {σ = σ} {σ} c a) (cohT σ σ σ c c c a)
@@ -883,3 +1033,11 @@ cohW∘ (t-d δ) (t-k {x = x} {y = y} {δ = δB} {δ' = δA} σ ex e) c (a , r) 
 cohW∘ (t-k {x = y} {y = z} {δ = δC} {δ' = δB} δ ey q) (t-k {x = x} {δ' = δA} σ ex e) c (a , r) =
   WD δ σ δC δB δA (CodeV-sound x y ex) (CodeV-sound y z ey) (CodeV-sound x z (CodeV-trans x y z ex ey))
      (VarΣ-set _ _) q e _ _ _ _ _ c a r
+
+cohT3 tε tε tε tε c₁ c₂ c₁₂ c₃ c₂₃ c₁₂₃ a = refl
+cohT3 (t-d σ) (t-d τ) (t-d ρ) (t-d μ) c₁ c₂ c₁₂ c₃ c₂₃ c₁₂₃ (a , r) = cohT3 σ τ ρ μ c₁ c₂ c₁₂ c₃ c₂₃ c₁₂₃ a
+cohT3 (t-k {x = x} {y} {δ} {δ'} σ ex₁ e₁) (t-k τ ex₂ e₂) (t-k ρ ex₃ e₃) (t-k μ ex₄ e₄) c₁ c₂ c₁₂ c₃ c₂₃ c₁₂₃ (a , r) =
+  T3K σ τ ρ μ δ δ' (CodeV-sound x y ex₁) (CodeV-sound x y ex₂) (CodeV-sound x y ex₃) (CodeV-sound x y ex₄)
+      (VarΣ-set _ _) (VarΣ-set _ _) (VarΣ-set _ _) (VarΣ-set _ _) (VarΣ-set _ _) (VarΣ-set _ _)
+      c₁ c₂ c₁₂ c₃ c₂₃ c₁₂₃ e₁ e₂ e₃ e₄ a r
+cohRT δ σ τ ρ c d cd c' d' cd' a = {!!}
