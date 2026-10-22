@@ -1,0 +1,842 @@
+\documentclass[11pt]{article}
+\usepackage{fontspec}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{fancyvrb}
+\usepackage{booktabs}
+\usepackage{stmaryrd}
+\usepackage{tikz-cd}
+\usepackage[margin=2.7cm]{geometry}
+\usepackage{xcolor}
+\usepackage[colorlinks,linkcolor=black,citecolor=black,urlcolor=blue!60!black]{hyperref}
+
+% fonts are loaded by file name (as required by arXiv's XeLaTeX setup)
+\setmainfont{lmroman10-regular.otf}[BoldFont=lmroman10-bold.otf,ItalicFont=lmroman10-italic.otf,
+  BoldItalicFont=lmroman10-bolditalic.otf,SlantedFont=lmromanslant10-regular.otf]
+\setsansfont{lmsans10-regular.otf}[BoldFont=lmsans10-bold.otf,ItalicFont=lmsans10-oblique.otf,
+  BoldItalicFont=lmsans10-boldoblique.otf]
+\setmonofont{JuliaMono-Regular.ttf}[BoldFont=JuliaMono-Bold.ttf,ItalicFont=JuliaMono-RegularItalic.ttf,
+  BoldItalicFont=JuliaMono-BoldItalic.ttf,Scale=0.82]
+\DefineVerbatimEnvironment{agda}{Verbatim}{xleftmargin=1.5em,fontsize=\small}
+\newcommand{\ag}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\repourl}{https://github.com/txa/sst-new}
+\newcommand{\agfile}[1]{\href{\repourl/blob/main/#1}{\ag{#1}}}
+\newcommand{\agdir}[1]{\href{\repourl/tree/main/#1}{\ag{#1/}}}
+
+% path composition, as in Agda
+\newcommand{\pc}{\mathbin{\text{\ttfamily ∙}}}
+
+\newtheorem*{remark}{Remark}
+
+\title{Now available in grey\\[0.5ex]
+\large Semi-simplicial groupoids from weakenings and thinnings}
+\author{Thorsten Altenkirch\\[0.5ex]
+\small University of Nottingham, United Kingdom\\
+\small\href{mailto:Thorsten.Altenkirch@nottingham.ac.uk}{\ag{Thorsten.Altenkirch@nottingham.ac.uk}}}
+\date{October 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+In a companion note~\cite{obstruction} we defined a small type theory of
+weakenings and thinnings, in which semi-simplicial types up to level $n$ can
+be constructed uniformly in $n$ as contexts $\mathrm{SST}\,n$. The syntax is
+defined by induction-recursion without K, and it is a set. Its naive
+interpretation in the universe, however, needs uniqueness of identity proofs
+(UIP) for the semantic types. Here we lift this limitation by one level. We
+interpret the syntax in families of \emph{groupoids}, without UIP and without
+K. Two changes make this work: a \emph{Forded} semantics of telescope
+extension, in which a kept entry never transports its value but only changes a
+stored path, and a semantic action of the codes for equality of thinnings,
+defined by recursion. What remains are 2-dimensional coherences of the
+semantic composition and weakening, which we prove by induction; their
+3-dimensional components are trivial because the semantic types are
+groupoids. As a result, $\llbracket\mathrm{SST}\,n\rrbracket$ is a type of
+semi-simplicial groupoids up to level $n$, defined uniformly in $n$. We
+also report on the next level, 2-types, where the 3-dimensional coherences have
+to be proved. The development is formalised in Cubical Agda, in the repository
+\href{\repourl}{\ag{github.com/txa/sst-new}}.
+\end{abstract}
+
+\begin{quote}\small
+``Any customer can have a car painted any colour that he wants so long as it
+is black.''\par\hfill --- Henry Ford, \emph{My Life and Work}~\cite{ford}
+\end{quote}
+\noindent
+From 1914 Ford's Model T was sold only in black; other colours returned in
+1926. The companion note~\cite{obstruction}, whose title borrows Ford's
+remark, found that the naive interpretation of our syntax works in any
+colour, as long as it is UIP, that is, in sets. This note offers the next
+shade: groupoids.
+
+\section{Introduction}
+
+Semi-simplicial types are the simplest structure in homotopy type theory that
+needs an infinite tower of coherences, and it is a well-known open problem
+whether the type of semi-simplicial types up to level $n$ can be defined
+uniformly in a variable $n:\mathbb N$ in book HoTT~\cite{ufias-sst,shulman-eat}.
+In two-level type theory this is possible~\cite{ack-strict,acks-2ltt}, and
+Kolomatskaia and Shulman define them in displayed type theory~\cite{dtt}.
+
+The companion note~\cite{obstruction} explains an attempt that proceeds in
+two steps. First define a small type theory (\ag{TT}) whose contexts can
+represent the data of semi-simplicial types, and construct the contexts
+$\mathrm{SST}\,n$ uniformly in that syntax. Then interpret the syntax in the
+universe. The first step goes through without K. The second one does not:
+the naive interpretation transports along the semantic images of equations
+that hold only propositionally, and making these transports agree needs UIP.
+The note also explains that the problem cannot simply be moved into the
+syntax: every presentation we tried either has critical pairs in the syntax or
+a naive model that needs UIP.
+
+This note shows that the limitation can be lifted, at least by one level.
+We interpret \ag{TT} in families of groupoids, without UIP and without K
+(file \agfile{experiments/sem1/Sem1.agda}). The coherences that the naive
+interpretation takes from UIP are now proved by induction on the syntax. They
+are 2-dimensional, and the only use of the truncation is that their
+3-dimensional components are trivial in groupoids. As a consequence
+\[
+\llbracket\mathrm{SST}\,n\rrbracket : \mathcal U_1
+\]
+is a type of semi-simplicial groupoids up to level $n$, defined uniformly in
+$n$. We do not claim that this is the first such definition; truncated
+versions of the problem need only finitely many coherences, and are expected
+to be solvable. The point is that the same syntax, and the same uniform
+construction of $\mathrm{SST}\,n$, work, and that the semantics has a clear
+structure that suggests how to go further.
+
+Sections~\ref{sec:sst}--\ref{sec:naive} recall the syntax, the construction of
+$\mathrm{SST}\,n$ and the naive interpretation from~\cite{obstruction}.
+Section~\ref{sec:grpd} is the main part: the groupoid semantics.
+Section~\ref{sec:sstgrpd} discusses the resulting semi-simplicial groupoids,
+and Section~\ref{sec:higher} the next level.
+
+\section{Semi-simplicial types up to triangles}\label{sec:sst}
+
+A semi-simplicial type up to level 2 consists of
+\begin{align*}
+X_0 &: \mathcal U\\
+X_1 &: X_0 \to X_0 \to \mathcal U\\
+X_2 &: (x_0\,x_1\,x_2 : X_0) \to X_1\,x_0\,x_1 \to X_1\,x_0\,x_2 \to X_1\,x_1\,x_2 \to \mathcal U
+\end{align*}
+Points, edges between points, and triangles filling a boundary of three
+points and three edges. Each $X_k$ is a family over a \emph{telescope}, and
+each entry of the telescope is an earlier family applied to a
+\emph{selection} of earlier entries: the edge $x_{02} : X_1\,x_0\,x_2$
+selects $x_0$ and $x_2$. Selections compose, and at level 2 this composition
+is used for the first time in a non-trivial way, since the boundary of a
+triangle consists of edges and the boundary of an edge consists of points.
+
+\section{The type theory of weakenings and thinnings}\label{sec:tt}
+
+The syntax has five sorts (see~\cite[\S\S 3--5]{obstruction} for a more
+leisurely account):
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\ag{Con : Set} & contexts & sequences of type families $X_0, X_1, \dots$\\
+\ag{Ty : Con → Set} & types & telescopes (domains of families)\\
+\ag{Var : (Γ : Con) → Ty Γ → Set} & variables & a family in $\Gamma$ over a telescope\\
+\ag{Wk : Con → Con → Set} & weakenings & here only \ag{p : Wk (Γ ▷ A) Γ}\\
+\ag{Thin : Ty Γ → Ty Γ → Set} & thinnings & projections between telescopes\\
+\bottomrule
+\end{tabular}
+\end{center}
+A thinning keeps some entries of a telescope and drops the others; read
+backwards, it is an order-preserving injection of the entries of its target
+into those of its source. The constructors are
+\begin{agda}
+•    : Con
+_▷_  : (Γ : Con) → Ty Γ → Con          -- add a family over a telescope
+ε    : Ty Γ                            -- empty telescope
+ext  : (A : Ty Γ) → Var Γ C → Thin A C → Ty Γ
+                                       -- A extended by an entry  x (δ a)
+zero : Var (Γ ▷ A) (wkTy A p)
+suc  : Var Γ A → Var (Γ ▷ B) (wkTy A p)
+tε   : Thin ε ε
+t-d  : Thin A B → Thin (ext A x γ) B   -- drop the last entry
+t-k  : (σ : Thin A B) → CodeV x y → Code (δ ∘ σ) δ'
+     → Thin (ext A x δ') (ext B y δ)   -- keep it
+\end{agda}
+Weakening and composition are operations,
+\begin{agda}[frame=single,framesep=2mm]
+wkTy   : Ty Γ → Wk Δ Γ → Ty Δ
+wkVar  : Var Γ A → (w : Wk Δ Γ) → Var Δ (wkTy A w)
+wkThin : Thin A B → (w : Wk Δ Γ) → Thin (wkTy A w) (wkTy B w)
+_∘_    : Thin B C → Thin A B → Thin A C
+\end{agda}
+defined by recursion, simultaneously with the syntax, since they occur in the
+indices of \ag{zero}, \ag{suc} and \ag{t-k}. So the syntax is an
+inductive-inductive-recursive definition. Agda accepts it, but we know of no
+general account of definitions of this form; we discuss this briefly in
+Section~\ref{sec:discussion}.
+
+A kept entry stores the equation that relates its index \ag{δ'} to the
+composite \ag{δ ∘ σ} (it is \emph{Forded}). Instead of an identity type it
+uses a code for equality of thinnings, defined by recursion:
+\begin{agda}
+Code : Thin A C → Thin A' C' → Set
+Code tε          tε          = ⊤
+Code (t-d σ)     (t-d τ)     = Code σ τ
+Code (t-k σ _ _) (t-k τ _ _) = Code σ τ
+Code _           _           = ⊥
+\end{agda}
+and similarly \ag{CodeV} for variables. Codes are propositions, by a plain
+induction, and they decode to equations (\ag{Code-sound}). With them
+composition is defined without transport, for instance
+\begin{agda}
+t-k δ ey q ∘ t-k σ ex e = t-k (δ ∘ σ) (CodeV-trans ex ey) (k-code q e)
+\end{agda}
+and the syntax is K-free (file \agfile{TT.agda}). Its sorts are sets, by
+encode-decode~\cite[Theorem~7.2.2]{hott-book}.
+
+\paragraph{SST in the syntax.}
+Following~\cite[Section~3]{ack-strict}, we define by recursion on $k$,
+simultaneously, the context \ag{ctx k} of levels $X_0,\dots,X_{k-1}$, the
+$k$-skeleton \ag{SK k n : Ty (ctx k)} of an $(n-1)$-simplex, its face maps
+\ag{SK→ k f : Thin (SK k n) (SK k m)} for order preserving embeddings $f$, and
+their functoriality \ag{α k f g}, a code relating \ag{SK→ k g ∘ SK→ k f} and
+\ag{SK→ k (f ⊙ g)}. This gives
+\begin{agda}
+SST : ℕ → Con
+\end{agda}
+uniformly in $n$ and without K (file \agfile{SSTk.agda}).
+
+\section{The naive interpretation needs UIP}\label{sec:naive}
+
+The intended interpretation of a context is a nested $\Sigma$-type of
+families, of a telescope a type depending on the context, and of a thinning a
+projection:\footnote{We write $\Sigma$-types as \ag{(x : A) × B}, by analogy
+with \ag{(x : A) → B}, and let \ag{×} associate to the right. This is not
+Agda syntax: in Agda the type is written \ag{Σ A (λ x → B)}, or
+\ag{Σ[ x ∈ A ] B} with the standard library.}
+\begin{agda}
+⟦ Γ ▷ A ⟧C       = (γ : ⟦ Γ ⟧C) × (⟦ A ⟧T γ → Set)
+⟦ ext A x δ ⟧T γ = (a : ⟦ A ⟧T γ) × ⟦ x ⟧V γ (⟦ δ ⟧Th a)
+⟦ t-k σ _ e ⟧Th (a , v) = ⟦ σ ⟧Th a , subst ⟦ x ⟧V (keq e a) v
+\end{agda}
+where \ag{keq e a : ⟦ δ' ⟧Th a ≡ ⟦ δ ⟧Th (⟦ σ ⟧Th a)} is built from the
+interpretation of the stored code and from
+\begin{agda}
+⟦∘⟧ : ⟦ δ ∘ σ ⟧Th a ≡ ⟦ δ ⟧Th (⟦ σ ⟧Th a)
+\end{agda}
+which holds only propositionally. In the case \ag{t-k ∘ t-k} of \ag{⟦∘⟧}
+itself, a value is transported along two different paths, and we have to
+show that the results agree. Since the semantic types are arbitrary, this is
+UIP for them~\cite[\S 7]{obstruction}.
+
+Note that this is a property of the naive \emph{semantics}, not of the syntax.
+The syntax is a set, and that does not need UIP: it follows from the codes by
+encode-decode. Nor does set-ness of the syntax restrict its interpretations,
+since the syntax is not a quotient. What fails is the particular way in which
+the naive interpretation interprets a kept entry, by transporting its value
+along the image of a propositional equation. With arbitrary types the
+coherence of these transports cannot be proved, and it is what the
+interpretation in~\cite{obstruction} takes from a UIP assumption
+(\ag{pair-irr}, file \agfile{Sem.agda}).
+
+\section{The groupoid semantics}\label{sec:grpd}
+
+We now restrict the semantic families to groupoids and show that then all the
+coherences can be proved. The interpretation is in Cubical
+Agda~\cite{cubical-agda}, file \agfile{experiments/sem1/Sem1.agda}. For equality
+reasoning we use Agda's inductive identity type, for which J computes; it is
+equivalent to the cubical path type (\ag{Cubical.Data.Equality}), and we use
+the cubical library only to state and transfer h-levels.
+
+\subsection{The interpretation}
+
+\paragraph{Groupoids.}
+A family in a context is now a family of groupoids:
+\begin{agda}
+record Grpd : Set₁ where
+  field ⌞_⌟ : Set ; isGrpd : isGroupoid ⌞_⌟
+
+⟦ • ⟧C     = ⊤
+⟦ Γ ▷ A ⟧C = (γ : ⟦ Γ ⟧C) × (⟦ A ⟧T γ → Grpd)
+\end{agda}
+The interpretations of types (telescopes) are then groupoids as well
+(\ag{isGrpdT}), since groupoids are closed under $\Sigma$ and path types of
+groupoids are sets. This is all we need: the stored paths, and the
+coherences between them, live in the interpretations of telescopes. The
+interpretation of a context is not a groupoid, since it contains the universe
+of groupoids, which by univalence is a 2-type; but nothing is needed about
+its h-level.
+
+\paragraph{Forded extension.}
+The first change is to Ford the semantics of telescope extension, just as the
+syntax Fords the index of a kept entry:
+\begin{agda}
+⟦ ext A x δ ⟧T γ = (a : ⟦ A ⟧T γ) × (d : ⟦ C ⟧T γ) × (⟦ δ ⟧Th a ≡ d) × ⟦ x ⟧V γ d
+\end{agda}
+An entry is a quadruple $(a, d, q, v)$: the earlier entries $a$, a point $d$
+of the telescope $C$ of the family $x$, a path $q$ from the selection
+$\llbracket\delta\rrbracket\,a$ to $d$, and a value $v$ of the family at $d$.
+By contracting the singleton $(d,q)$ this is equivalent to the naive
+$\Sigma\,(a : \llbracket A\rrbracket\,\gamma)\,.\,\llbracket x\rrbracket\,\gamma\,(\llbracket\delta\rrbracket\,a)$.
+The advantage is that a kept entry no longer has to transport its value; it
+only extends the stored path:
+\begin{agda}
+⟦ t-k σ ex e ⟧Th (a , d , q , v) = ⟦ σ ⟧Th a , d , kp δ σ δ' e a ∙ q , v
+  where kp δ σ δ' e a = sym (⟦∘⟧ δ σ a) ∙ ≈ e a
+\end{agda}
+(We have suppressed the code \ag{ex : CodeV x y} relating the source and
+target variables; in the formalisation it is decoded to a path in the set of
+variables and matched with \ag{refl}.) A thinning never changes the point
+$d$ or the value $v$ of an entry. Consequently, a path between the
+interpretations of two thinnings has no component in the values: it is a path
+in the earlier entries together with a 2-path between stored paths.
+
+\paragraph{Codes act as paths.}
+The second change concerns the stored codes. We need a path from
+$\llbracket\delta\circ\sigma\rrbracket\,a$ to
+$\llbracket\delta'\rrbracket\,a$ for every code
+\ag{e : Code (δ ∘ σ) δ'}. Rather than applying the interpretation to the
+decoded equation \ag{Code-sound e}, which does not compute, we give codes a
+semantic action, by recursion:
+\begin{agda}
+≈ : Code σ τ → (a : ⟦ A ⟧T γ) → ⟦ σ ⟧Th a ≡ ⟦ τ ⟧Th a
+\end{agda}
+On \ag{tε} and \ag{t-d} it is \ag{refl} and the recursive call. On two keeps
+it is a path in the Forded $\Sigma$-type, whose components are \ag{≈} on the
+kept thinnings and a 2-path between stored paths, described below.
+
+\paragraph{Weakening.}
+The variables \ag{zero : Var (Γ ▷ B) (wkTy B p)} and
+\ag{suc x : Var (Γ ▷ B) (wkTy A p)} live over weakened telescopes. A telescope
+\ag{A} of \ag{Γ}, moved into \ag{Γ ▷ B}, has the same shape, but its entries
+refer to the families \ag{suc x} instead of \ag{x}. Its interpretation
+\ag{⟦ wkTy A p ⟧T (γ , X)} is therefore not definitionally
+\ag{⟦ A ⟧T γ}: the two agree only if the interpretations of
+\ag{wkThin δ p} and \ag{δ} agree, and that holds only up to a path. So we do
+not identify them but relate them by a map, defined by recursion on \ag{A},
+\begin{agda}
+unwk : ⟦ wkTy A p ⟧T (γ , X) → ⟦ A ⟧T γ
+unwk ε b                   = tt
+unwk (ext A x δ) (a , d , q , v)
+  = unwk A a , unwk C d , sym (unwk-nat δ a) ∙ cong (unwk C) q , v
+\end{agda}
+together with its naturality for thinnings,
+\begin{agda}
+unwk-nat : unwk C (⟦ wkThin δ p ⟧Th a) ≡ ⟦ δ ⟧Th (unwk A a)
+\end{agda}
+The variables are interpreted through it,
+\begin{agda}
+⟦ zero  ⟧V (γ , X) b = ⌞ X (unwk B b) ⌟
+⟦ suc x ⟧V (γ , X) b = ⟦ x ⟧V γ (unwk A b)
+\end{agda}
+which is what makes the value \ag{v} in the definition of \ag{unwk} well
+typed. Again the Forded semantics pays off: \ag{unwk} leaves the value alone
+and only corrects the stored path, using \ag{unwk-nat}.
+
+\paragraph{Paths of kept entries.}
+All paths between kept entries have the same form. We state it for a general
+Forded $\Sigma$-type. Let \ag{B} be a type of earlier entries, \ag{D} a type
+of points with a selection \ag{f : B → D}, and \ag{V} a family over \ag{D};
+for \ag{⟦ ext A x δ ⟧T γ} these are \ag{⟦ A ⟧T γ}, \ag{⟦ C ⟧T γ},
+\ag{⟦ δ ⟧Th} and \ag{⟦ x ⟧V γ}. Given earlier entries \ag{b b' : B}, a
+point \ag{d : D}, stored paths \ag{q : f b ≡ d} and \ag{q' : f b' ≡ d}, and a
+value \ag{v : V d}, we can form the two entries
+\begin{agda}
+(b , d , q , v) , (b' , d , q' , v) : (b : B) × (d : D) × (f b ≡ d) × V d
+\end{agda}
+which share their point and their value. Given moreover a path
+\ag{r : b ≡ b'} between the earlier entries and a 2-path
+\ag{s : sym (cong f r) ∙ q ≡ q'}, saying that going back along the image of
+\ag{r} and then along \ag{q} gives \ag{q'}, we have
+\begin{agda}
+pathK r s : (b , d , q , v) ≡ (b' , d , q' , v)
+\end{agda}
+defined by J on \ag{r}.
+
+\ag{pathK} organises everything that follows. It splits a path between kept
+entries into a \emph{base} part \ag{r}, which will be given by recursion or
+induction on the thinnings, and a \emph{stored-path} part \ag{s}, which is
+where the coherences come in. One level up, two composites of \ag{pathK}s are
+equal if their base paths are equal and their stored-path parts agree; the
+latter is an equation between 2-paths, and this is the only place where we
+will use that the semantic types are groupoids
+(Section~\ref{sec:where}).
+
+The interpretation is defined by mutual recursion: the
+interpretation of thinnings \ag{⟦_⟧Th}, the action of codes \ag{≈}, the
+composition path \ag{⟦∘⟧}, and \ag{unwk} and \ag{unwk-nat}.
+In each of \ag{≈}, \ag{⟦∘⟧} and \ag{unwk-nat}, the case of a kept entry is a
+\ag{pathK}, whose base path is a recursive call and whose second component is
+one of three 2-cells:
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+cell & used in & statement\\
+\midrule
+\ag{cohN} & \ag{≈} on keeps & stored paths are natural in codes\\
+\ag{cohA} & \ag{⟦∘⟧} on two keeps & stored paths of two keeps compose to that of the composite\\
+\ag{cohW} & \ag{unwk-nat} on keeps & weakening commutes with stored paths\\
+\bottomrule
+\end{tabular}
+\end{center}
+Their types say that certain diagrams of paths commute. We omit
+$\llbracket-\rrbracket$, writing $\delta\sigma a$ for
+$\llbracket\delta\rrbracket(\llbracket\sigma\rrbracket\,a)$, write
+$\langle c\rangle$ for the code path \ag{≈ c a}, and write
+$\mathrm{kp}_e$ for the stored path \ag{kp δ σ δ' e a} of a keep with code
+\ag{e : Code (δ ∘ σ) δ'}.
+\begin{center}
+\begin{tikzcd}[column sep=huge,row sep=huge]
+\delta\sigma a \ar[r,"\delta\langle c\rangle"] \ar[dr,"\mathrm{kp}_e"'] & \delta\tau a \ar[d,"\mathrm{kp}_{e'}"] \\
+& \delta' a
+\ar[from=1-1,to=2-2,phantom,"\text{\ag{cohN}}" pos=0.55,shift left=2.5ex]
+\end{tikzcd}
+\qquad
+\begin{tikzcd}[column sep=large]
+\delta_C((\delta\circ\sigma)a) \ar[r,"{\delta_C\circ(\delta,\sigma)}"] \ar[dr,"\mathrm{kp}_{e'}"'] & \delta_C\delta\sigma a \ar[r,"\mathrm{kp}_{q}"] & \delta_B\sigma a \ar[dl,"\mathrm{kp}_e"] \\
+& \delta_A a &
+\ar[from=1-2,to=2-2,phantom,"\text{\ag{cohA}}" pos=0.45]
+\end{tikzcd}
+
+\medskip
+\begin{tikzcd}[column sep=large]
+U(\delta^+\sigma^+a) \ar[r,"{u(\delta)}"] \ar[d,"U\mathrm{kp}_{e_1}"'] & \delta\,U(\sigma^+a) \ar[r,"{\delta\,u(\sigma)}"] & \delta\sigma\bar a \ar[d,"\mathrm{kp}_e"] \\
+U(\delta'^+a) \ar[rr,"{u(\delta')}"'] & & \delta'\bar a
+\ar[from=1-1,to=2-3,phantom,"\text{\ag{cohW}}"]
+\end{tikzcd}
+\end{center}
+\begin{itemize}
+\item \ag{cohN}: for \ag{c : Code σ τ}, moving along the code path
+  of the kept thinnings and then using the stored path of the target keep is
+  the stored path of the source keep. So stored paths are natural in codes.
+\item \ag{cohA}: for keeps \ag{δ} (with code \ag{q}) and \ag{σ}
+  (with code \ag{e}), the two stored paths compose to the stored path of the
+  composite keep (with code \ag{e'}), up to the composition path.
+\item \ag{cohW}: here $U = \mathrm{unwk}$, $\delta^+ =
+  \ag{wkThin δ p}$, $\bar a = \mathrm{unwk}\,a$, and $u(\delta)$ is
+  \ag{unwk-nat δ}. The image under $U$ of the stored path of a weakened keep
+  is the stored path at $\bar a$, up to the weakening comparisons.
+\end{itemize}
+This is where the naive interpretation used UIP: it needed two transports to agree,
+and now we need two paths to be equal, but only the specific ones that arise.
+
+\subsection{The 2-cells}
+
+The three stored-path cells are not proved directly. They are pasted from a
+small set of \emph{generic} 2-cells, which are proved by induction on the
+syntax. There are six generic 2-cells. We write $\circ(\delta,\sigma)$ for \ag{⟦∘⟧ δ σ a}, and $u(\delta)$,
+$U$, $\delta^+$, $\bar a$ and $\langle c\rangle$ as before; each cell says
+that its diagram commutes.
+\begin{center}
+\begin{tikzcd}[column sep=large,row sep=large]
+\sigma a \ar[r,"\langle c\rangle"] \ar[dr,"\langle cd\rangle"'] & \tau a \ar[d,"\langle d\rangle"] \\
+\phantom{x} & \rho a
+\ar[from=1-1,to=2-2,phantom,"\text{\ag{cohT}}" pos=0.55,shift left=2.5ex]
+\end{tikzcd}
+\qquad
+\begin{tikzcd}[column sep=large,row sep=large]
+(\delta\circ\sigma)a \ar[r,"{\circ(\delta,\sigma)}"] \ar[d,"\langle c'\rangle"'] & \delta\sigma a \ar[d,"\delta\langle c\rangle"] \\
+(\delta\circ\tau)a \ar[r,"{\circ(\delta,\tau)}"'] & \delta\tau a
+\ar[from=1-1,to=2-2,phantom,"\text{\ag{cohR}}"]
+\end{tikzcd}
+\qquad
+\begin{tikzcd}[column sep=large,row sep=large]
+(\delta\circ\sigma)a \ar[r,"{\circ(\delta,\sigma)}"] \ar[d,"\langle c'\rangle"'] & \delta\sigma a \ar[d,"\langle c\rangle"] \\
+(\delta_2\circ\sigma)a \ar[r,"{\circ(\delta_2,\sigma)}"'] & \delta_2\sigma a
+\ar[from=1-1,to=2-2,phantom,"\text{\ag{cohL}}"]
+\end{tikzcd}
+
+\medskip
+\begin{tikzcd}[column sep=large,row sep=large]
+(\rho\circ(\delta\circ\sigma))a \ar[r,"{\circ(\rho,\delta\circ\sigma)}"] \ar[d,"\langle c\rangle"'] & \rho((\delta\circ\sigma)a) \ar[r,"{\rho\circ(\delta,\sigma)}"] & \rho\delta\sigma a \\
+((\rho\circ\delta)\circ\sigma)a \ar[r,"{\circ(\rho\circ\delta,\sigma)}"'] & (\rho\circ\delta)\sigma a \ar[ur,"{\circ(\rho,\delta)}"'] &
+\ar[from=1-1,to=2-2,phantom,"\text{\ag{cohAs}}"]
+\end{tikzcd}
+\qquad
+\begin{tikzcd}[column sep=large,row sep=large]
+U(\rho^+a) \ar[r,"U\langle c'\rangle"] \ar[d,"u(\rho)"'] & U(\rho'^+a) \ar[d,"u(\rho')"] \\
+\rho\bar a \ar[r,"\langle c\rangle"'] & \rho'\bar a
+\ar[from=1-1,to=2-2,phantom,"\text{\ag{cohWN}}"]
+\end{tikzcd}
+
+\medskip
+\begin{tikzcd}[column sep=large,row sep=large]
+U((\delta^+\circ\sigma^+)a) \ar[r,"U\langle c\rangle"] \ar[dr,"{U\circ(\delta^+,\sigma^+)}"'] & U((\delta\circ\sigma)^+a) \ar[r,"{u(\delta\circ\sigma)}"] & (\delta\circ\sigma)\bar a \ar[r,"{\circ(\delta,\sigma)}"] & \delta\sigma\bar a \\
+\phantom{x} & U(\delta^+\sigma^+a) \ar[r,"{u(\delta)}"'] & \delta\,U(\sigma^+a) \ar[ur,"{\delta\,u(\sigma)}"'] &
+\ar[from=1-2,to=2-3,phantom,"\text{\ag{cohW∘}}"]
+\end{tikzcd}
+\end{center}
+Here $c, c', cd, \dots$ are codes between the relevant thinnings. In words: code paths compose (\ag{cohT}),
+composition is natural in codes on the right and on the left (\ag{cohR},
+\ag{cohL}), composition is associative up to a code (\ag{cohAs}), and the
+weakening comparison is natural in codes and compatible with composition
+(\ag{cohWN}, \ag{cohW∘}). So the semantics has the structure of a
+pseudofunctor on the category of thinnings: \ag{≈} is its action on codes,
+\ag{⟦∘⟧} its compositor, \ag{unwk-nat} a pseudonatural comparison, and the
+generic 2-cells are the corresponding naturality and associativity data.
+
+\paragraph{The stored-path cells as pastings.}
+Each stored-path cell is a pasting of generic 2-cells
+(Figure~\ref{fig:cells}). The pasting is done by a lemma of pure path
+algebra, proved by J, since it holds for arbitrary paths. For \ag{cohN} it is
+\begin{agda}
+lemN : m ∙ n ≡ k ∙ l → k ∙ e₂ ≡ e₁ → sym n ∙ (sym m ∙ e₁) ≡ sym l ∙ e₂
+\end{agda}
+instantiated with $m = \circ(\delta,\sigma)$, $n = \delta\langle c\rangle$,
+$k = \langle c'\rangle$, $l = \circ(\delta,\tau)$, $e_1 = \langle e\rangle$
+and $e_2 = \langle e'\rangle$. Then the first hypothesis is the \ag{cohR}
+square for $c$ and the induced code $c'$, the second is the \ag{cohT}
+triangle for $c'$, $e'$ and $e$, and since the stored path is
+(writing, as in Agda, $p\pc q$ for path composition)
+$\mathrm{kp}_e = \circ(\delta,\sigma)^{-1}\pc\langle e\rangle$, the conclusion
+$\delta\langle c\rangle^{-1}\pc\mathrm{kp}_e = \mathrm{kp}_{e'}$ is
+\ag{cohN}: a square and a triangle pasted along $\langle c'\rangle$
+(Figure~\ref{fig:cells}(a)). In the same way \ag{lemA} pastes \ag{cohAs},
+\ag{cohL} and two instances of \ag{cohT} into \ag{cohA}, and \ag{lemW} pastes
+\ag{cohW∘}, \ag{cohWN} and \ag{cohT} into \ag{cohW}.
+
+\begin{figure}[!htbp]
+\centering
+\small
+\textbf{(a)} \ag{cohN}\\[1ex]
+\begin{tikzcd}[column sep=large,row sep=large]
+\delta\sigma a \ar[d,"\delta\langle c\rangle"'] & (\delta\circ\sigma)a \ar[l,"{\circ(\delta,\sigma)}"'] \ar[d,"\langle c'\rangle"] \ar[dr,"\langle e\rangle"] & \phantom{x} \\
+\delta\tau a & (\delta\circ\tau)a \ar[l,"{\circ(\delta,\tau)}"] \ar[r,"\langle e'\rangle"'] & \delta' a
+\ar[from=1-1,to=2-2,phantom,"\mathsf R"]
+\ar[from=2-2,to=1-3,phantom,"\mathsf T" pos=0.3]
+\end{tikzcd}
+
+\bigskip
+\textbf{(b)} \ag{cohA}\\[1ex]
+\begin{tikzcd}[column sep=large,row sep=large]
+\phantom{x} & (\delta_C\circ(\delta\circ\sigma))a \ar[r,"{\circ(\delta_C,\delta\circ\sigma)}"] \ar[d,"\langle c_1\rangle"] \ar[dl,"\langle e'\rangle"']
+  & \delta_C((\delta\circ\sigma)a) \ar[r,"{\delta_C\circ(\delta,\sigma)}"] & \delta_C\delta\sigma a \\
+\delta_A a & ((\delta_C\circ\delta)\circ\sigma)a \ar[r,"{\circ(\delta_C\circ\delta,\sigma)}"] \ar[d,"\langle c_2\rangle"] \ar[l,"\langle c_2e\rangle"]
+  & (\delta_C\circ\delta)\sigma a \ar[ur,"{\circ(\delta_C,\delta)}"'] \ar[d,"\langle q\rangle"] & \\
+\phantom{x} & (\delta_B\circ\sigma)a \ar[r,"{\circ(\delta_B,\sigma)}"'] \ar[ul,"\langle e\rangle"] & \delta_B\sigma a &
+\ar[from=2-2,to=1-3,phantom,"\mathsf{As}"]
+\ar[from=2-2,to=3-3,phantom,"\mathsf L"]
+\ar[from=2-2,to=1-1,phantom,"\mathsf T" pos=0.35]
+\ar[from=2-2,to=3-1,phantom,"\mathsf T" pos=0.35]
+\end{tikzcd}
+
+\bigskip
+\textbf{(c)} \ag{cohW}\\[1ex]
+\begin{tikzcd}[column sep=large,row sep=large]
+U((\delta^+\circ\sigma^+)a) \ar[r,"{U\circ(\delta^+,\sigma^+)}"] \ar[d,"U\langle c_3\rangle"] \ar[dd,bend right=75,looseness=1.6,"U\langle e_1\rangle"']
+  & U(\delta^+\sigma^+a) \ar[r,"{u(\delta)}"] & \delta\,U(\sigma^+a) \ar[r,"{\delta\,u(\sigma)}"] & \delta\sigma\bar a \\
+U((\delta\circ\sigma)^+a) \ar[rrr,"{u(\delta\circ\sigma)}"] \ar[d,"U\langle c_w\rangle"] & & & (\delta\circ\sigma)\bar a \ar[u,"{\circ(\delta,\sigma)}"'] \ar[d,"\langle e\rangle"] \\
+U(\delta'^+a) \ar[rrr,"{u(\delta')}"'] & & & \delta'\bar a
+\ar[from=1-1,to=2-4,phantom,"\mathsf{W\circ}"]
+\ar[from=2-1,to=3-4,phantom,"\mathsf{WN}"]
+\ar[from=1-1,to=3-1,phantom,"\mathsf T",shift right=17mm]
+\end{tikzcd}
+
+\caption{The stored-path cells as pastings of the generic 2-cells. We omit
+$\llbracket-\rrbracket$: $\delta\sigma a$ stands for
+$\llbracket\delta\rrbracket(\llbracket\sigma\rrbracket\,a)$ and
+$(\delta\circ\sigma)a$ for $\llbracket\delta\circ\sigma\rrbracket\,a$, and,
+as in Agda, $p\pc q$ for path composition. A
+stored path is $\mathrm{kp}\,\delta\,\sigma\,\delta'\,e =
+\circ(\delta,\sigma)^{-1}\pc \langle e\rangle$. In each diagram the cell is
+the equality of the two paths around the outer boundary, from
+$\delta\sigma a$ in (a) and from the top right corner in (b) and (c), and it is obtained by pasting the labelled regions; this is what the
+J-lemmas \ag{lemN}, \ag{lemA}, \ag{lemW} do.
+(a) $\mathrm{kp}\,\delta\,\sigma\,\delta'\,e = \delta\langle c\rangle\pc 
+\mathrm{kp}\,\delta\,\tau\,\delta'\,e'$, where $c'$ is the code induced by $c$.
+(b) $\delta_C\circ(\delta,\sigma)^{-1}\pc \mathrm{kp}\,\delta_C\,(\delta\circ\sigma)\,\delta_A\,e'
+= \mathrm{kp}\,\delta_C\,\delta\,\delta_B\,q\pc \mathrm{kp}\,\delta_B\,\sigma\,\delta_A\,e$,
+where $c_1$ is the associativity code, $c_2$ the code induced by $q$, and $c_2e$
+their composite with $e$.
+(c) $U = \mathrm{unwk}$, $\delta^+ = \mathrm{wkThin}\,\delta\,p$ and $\bar a =
+\mathrm{unwk}\,a$: the image under $U$ of the stored path of the weakened keep
+agrees with the stored path at $\bar a$, up to the weakening comparisons $u$.}
+\label{fig:cells}
+\end{figure}
+
+\paragraph{Proving the generic 2-cells.}
+The generic 2-cells are proved by induction on the thinnings, mutually with
+the interpretation. On \ag{tε} and \ag{t-d} they reduce to the induction
+hypothesis or hold by \ag{refl}. On keeps both sides are composites of
+\ag{pathK}s, and two such composites are equal if their base paths are equal
+(the induction hypothesis) and their stored components agree. The stored
+components are 2-paths between paths in \ag{⟦ C ⟧T γ}, so their agreement is
+a \emph{3-path} in \ag{⟦ C ⟧T γ}.
+
+\subsection{Where the groupoids are used}\label{sec:where}
+
+This is the only place where we use that the semantic types are groupoids. In a
+groupoid the path types are sets, so any two parallel 2-paths are equal and the
+required 3-paths exist:
+\begin{agda}
+grpdEq : isGroupoid D → {u v : D}{q q' : u ≡ v}(s s' : q ≡ q') → s ≡ s'
+\end{agda}
+This is used in the two lemmas that compare composites of \ag{pathK}s
+(\ag{pathK-∙∙} and \ag{pathK-∙≡}), and nowhere else. So the tower of
+coherences stops after one step:
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+level & cells & proved by\\
+\midrule
+1 & \ag{≈}, \ag{⟦∘⟧}, \ag{unwk-nat} & recursion; stored parts \ag{cohN}, \ag{cohA}, \ag{cohW}\\
+2 & \ag{cohT}, \ag{cohR}, \ag{cohL}, \ag{cohAs}, \ag{cohWN}, \ag{cohW∘} & induction; stored parts 3-paths\\
+3 & 3-paths in the semantic types & trivial in groupoids\\
+\bottomrule
+\end{tabular}
+\end{center}
+The naive interpretation needed the analogous statement one level
+lower, that 2-paths in the semantic types are trivial, which is UIP. The
+Forded semantics and the action of codes shift the use of truncation up by
+one dimension.
+
+\paragraph{The formalisation.}
+\agfile{experiments/sem1/Sem1.agda} has about 870 lines, contains no
+postulates and no holes, and uses no K (it is checked with
+\ag{--cubical}, which implies \ag{--without-K}). It uses 15
+\ag{TERMINATING} pragmas: the mutual recursion is structural, but it goes
+through the decoded codes and through the mutually defined functions in a way
+that Agda's termination checker does not recognise. Type checking takes about
+two and a half minutes. Most of the work is in the keep cases, where the J-lemmas
+must be applied with explicit motives, and in the cases of \ag{cohAs} and
+\ag{cohW∘} that combine several keeps.
+
+\section{Semi-simplicial groupoids}\label{sec:sstgrpd}
+
+Interpreting the uniform construction of Section~\ref{sec:tt} gives
+\begin{agda}
+⟦ SST n ⟧C : Set₁
+\end{agda}
+for a variable $n$: a type of semi-simplicial groupoids up to level $n$, in
+Forded form. Each level is a family of groupoids over the Forded telescope
+of the boundary of a simplex, whose entries store paths from the selected
+faces to their points.
+
+The file \agfile{experiments/sem1/SemSST.agda} checks that the
+construction selects the right faces. For $n = 1, 2$ there are maps from
+the standard, unforded semi-simplicial groupoids, written out by hand, into
+$\llbracket\mathrm{SST}\,n\rrbracket$, which transport each value along its
+stored path to the family applied to the faces it should select. These maps
+typecheck only if every face map of the construction selects the right lower
+simplices. For $n = 3$ the same check is too expensive, since Agda would have to
+normalise stored paths that contain the coherence proofs. But since a
+thinning never changes the point $d$ or the value $v$ of an entry, it is
+enough to check that each triangle face of a tetrahedron selects entries with
+the right points and values. These checks hold by \ag{refl}, and a
+deliberately wrong face fails, as expected.
+
+We have not formalised that $\llbracket\mathrm{SST}\,n\rrbracket$ is
+equivalent to the type of semi-simplicial groupoids up to level $n$ written
+out by hand, for each numeral $n$. Level by level this is the contraction of
+the singletons $(d, q)$, but the equivalence has to be compatible with the
+face maps, and we have only checked this for $n \le 3$ as above.
+
+The natural statement of correctness uses two-level type
+theory~\cite{ack-strict,acks-2ltt}, where semi-simplicial types up to level
+$n$ can be defined for an outer natural number $n$. Restricting that
+definition to families of groupoids gives a type
+$\mathrm{SST}^{\mathrm{Grpd}}_n$ of semi-simplicial groupoids, and we expect
+\[
+\llbracket\mathrm{SST}\,n\rrbracket \simeq \mathrm{SST}^{\mathrm{Grpd}}_n
+\]
+for every outer $n$. Since our construction of $\mathrm{SST}\,n$ follows the
+recursion of~\cite[Section~3]{ack-strict}, the proof would go by induction
+along it. The skeleta are equivalent by contracting the singletons $(d,q)$,
+and the main work is to show that these equivalences commute with the face
+maps, coherently with $\alpha$: the face maps compose strictly in two-level
+type theory, and only up to the 2-cells of Section~\ref{sec:grpd} in our
+semantics. We leave this for future work.
+
+\section{The next level}\label{sec:higher}
+
+The same construction, with groupoids replaced by 2-types, is in
+\agfile{experiments/sem1/Sem2.agda}. Now the stored components of the generic
+2-cells are 3-paths, which are no longer trivial. Every place where
+\ag{Sem1} used \ag{grpdEq} becomes an obligation: a 3-path between two
+specific pastings of 2-cells, transported along a 2-cell at smaller
+thinnings. There are six such obligations, one for each generic 2-cell, and
+unfolding the stored-path cells turns each into an equation between two
+pastings of the generic 2-cells, that is, a 3-cell. We expect twelve generic
+3-cells:
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+3-cell & statement\\
+\midrule
+\ag{T3} & \ag{cohT} is associative\\
+\ag{RT}, \ag{LT} & \ag{cohR}, \ag{cohL} are functorial in codes\\
+\ag{RL} & interchange of \ag{cohR} and \ag{cohL}\\
+\ag{AsR}, \ag{AsM}, \ag{AsL} & \ag{cohAs} is natural in each argument\\
+\ag{Pent} & the pentagon for \ag{cohAs}\\
+\ag{WNT} & \ag{cohWN} is functorial in codes\\
+\ag{W∘R}, \ag{W∘L} & \ag{cohW∘} is natural in each argument\\
+\ag{W∘As} & \ag{cohW∘} is compatible with \ag{cohAs}\\
+\bottomrule
+\end{tabular}
+\end{center}
+These are the pseudofunctor axioms one level up. So far we have discharged the
+obligation for \ag{cohT} from \ag{T3} and \ag{RT}, and proved \ag{T3}. On keeps
+the proof of \ag{T3} again splits into a base 3-cell, the induction hypothesis,
+and a stored component, which is a 4-path in a 2-type and therefore trivial.
+This confirms the pattern: at each level the cells are equations between two
+given parallel pastings of the cells below, so no boundary data is ever
+needed, and the keep cases are discharged by the induction hypothesis together
+with the truncation one dimension up. The remaining obligations and 3-cells
+are work in progress.
+
+\paragraph{The pattern.}
+The cells are indexed by simplices of the nerve of the category of
+thinnings. The compositor $\circ(\delta,\sigma)$ belongs to a 2-simplex with
+edges $\sigma$, $\delta$, $\delta\circ\sigma$; the associator \ag{cohAs} to a
+3-simplex, whose four faces are compositor cells; the pentagon to a
+4-simplex, with five associator faces. The code cells express that the
+semantics respects the equations of the syntax, and the weakening cells that
+it commutes with context extension. To define the interpretation into
+$k$-types uniformly in an internal $k:\mathbb N$, one would have to describe
+this whole tower as a single statement, ``parallel pastings of the
+generators agree'', generated by induction on the dimension. Stating it needs
+a uniform notion of pasting, and this is where higher categories come back:
+the coherences say that the interpretation is a $k$-coherent functor from the
+thinnings into the universe of $k$-types, and the latter is described by
+semi-simplicial types of higher dimension.
+
+\section{Discussion}\label{sec:discussion}
+
+\paragraph{What has been achieved.}
+The obstruction of~\cite{obstruction} is not a limitation of the
+syntax, nor of the construction of $\mathrm{SST}\,n$ in it. It is the
+coherence of the semantic composition, which the naive interpretation takes
+from UIP. With a Forded semantics of extension and a semantic action of
+codes, these coherences can be proved by induction, and for groupoids the
+induction closes after one level. For 2-types it needs one more level, and the
+shape of that level is now known.
+
+\paragraph{Induction-recursion.}
+The construction relies on the inductive-recursive syntax: composition and
+weakening are defined by recursion and occur in the indices of constructors,
+so that the syntax has no transports and its recursive equations hold
+definitionally. There are general accounts of
+induction-recursion~\cite{dybjer-ir,dybjer-setzer} and of
+induction-induction~\cite{forsberg-setzer}, but we know of none that covers this
+form. In~\cite{obstruction} we also considered syntaxes without
+induction-recursion: a Forded higher inductive-inductive type, which is a set
+but whose naive model needs UIP, and which could instead be interpreted
+through normal forms, that is, through the inductive-recursive syntax. A
+different possibility is a Segal-style syntax in which composition is a horn
+filler with a contraction, and the thinnings are truncated at the level of the
+semantics (file \agfile{experiments/segal/TT1.agda}, a higher
+inductive-inductive type at the level of groupoids). An interpretation of that
+syntax in groupoids would avoid induction-recursion altogether, and would
+organise the coherences as the Segal condition for the universe. We have not
+yet attempted it.
+
+\paragraph{Higher categories.}
+The pattern of Section~\ref{sec:higher} suggests organising the
+construction with higher categories. Instead of extracting the coherences of
+each level from the syntax, we would define, mutually and by induction on the
+truncation level $k$, semi-simplicial $k$-types and $(k,1)$-categories
+presented by them, and use the higher-categorical structure of the universe
+of $k$-types to interpret the syntax at the next level. The coherences of
+Sections~\ref{sec:grpd} and~\ref{sec:higher} would then be instances of this
+structure rather than ad hoc lemmas. We think this is feasible, and
+conceptually the right picture: truncated semi-simplicial types and higher
+categories should be definable together. Passing from the truncated
+versions to untruncated semi-simplicial types is a separate step. If the
+types $\mathrm{SST}^{(k)}_n$ of semi-simplicial $k$-types are definable
+uniformly in $k$, together with maps
+$\mathrm{SST}^{(k+1)}_n \to \mathrm{SST}^{(k)}_n$, we can simply
+\emph{define}
+\[
+\mathrm{SST}_n = \lim_k \mathrm{SST}^{(k)}_n,
+\]
+the type of Postnikov towers of truncated semi-simplicial types. The maps
+are not levelwise truncation: a truncated family has to live over the
+boundary built from the truncated lower levels, so they are the Postnikov
+truncation of the diagram (truncate the total spaces of simplices, then take
+fibres over the new boundaries), and defining them uniformly in $n$ needs the
+semantics to be natural in the truncation level. Whether this limit is
+\emph{the} type of semi-simplicial types depends on whether types are
+determined by their truncations (Postnikov towers converging). This is where
+hypercompleteness comes in (Whitehead's principle: $\infty$-connected maps
+are equivalences), which is not provable in book HoTT. So the outcome would be
+that semi-simplicial types are definable up to Postnikov completion, and
+agree with the intended ones in models where Postnikov towers converge, such
+as simplicial sets. It would also suggest why a direct definition of the
+untruncated type is hard to find: it would have to work in models where
+towers do not converge.
+
+\section*{Use of AI tools}
+This note and the accompanying Agda development were produced in
+collaboration with Claude (Anthropic), used through Claude Code. Claude
+drafted text and Agda code, carried out experiments in Agda, and searched the
+literature, under the author's direction. The author has checked the content
+and is responsible for it.
+
+\begin{thebibliography}{99}
+\bibitem{ford}
+Henry Ford, in collaboration with Samuel Crowther.
+\newblock \emph{My Life and Work}.
+\newblock Doubleday, Page \& Company, 1922.
+
+\bibitem{obstruction}
+Thorsten Altenkirch.
+\newblock Any colour you like, as long as it's UIP: semi-simplicial types from
+  weakenings and thinnings.
+\newblock arXiv:2610.29585 [cs.LO], 2026.
+  \href{https://doi.org/10.48550/arXiv.2610.29585}{doi:10.48550/arXiv.2610.29585}.
+
+\bibitem{ack-strict}
+Thorsten Altenkirch, Paolo Capriotti and Nicolai Kraus.
+\newblock Extending homotopy type theory with strict equality.
+\newblock In \emph{CSL 2016}, LIPIcs 62, pages 21:1--21:17, 2016.
+
+\bibitem{acks-2ltt}
+Danil Annenkov, Paolo Capriotti, Nicolai Kraus and Christian Sattler.
+\newblock Two-level type theory and applications.
+\newblock \emph{Mathematical Structures in Computer Science}, 33(8):688--743,
+  2023.
+
+\bibitem{dybjer-ir}
+Peter Dybjer.
+\newblock A general formulation of simultaneous inductive-recursive
+  definitions in type theory.
+\newblock \emph{Journal of Symbolic Logic}, 65(2):525--549, 2000.
+
+\bibitem{dybjer-setzer}
+Peter Dybjer and Anton Setzer.
+\newblock A finite axiomatization of inductive-recursive definitions.
+\newblock In \emph{TLCA 1999}, LNCS 1581, pages 129--146. Springer, 1999.
+
+\bibitem{hott-book}
+The Univalent Foundations Program.
+\newblock \emph{Homotopy Type Theory: Univalent Foundations of Mathematics}.
+\newblock Institute for Advanced Study, 2013.
+
+\bibitem{dtt}
+Astra Kolomatskaia and Michael Shulman.
+\newblock Displayed type theory and semi-simplicial types.
+\newblock \emph{Mathematical Structures in Computer Science}, published online
+  2025. arXiv:2311.18781.
+
+\bibitem{forsberg-setzer}
+Fredrik Nordvall Forsberg and Anton Setzer.
+\newblock Inductive-inductive definitions.
+\newblock In \emph{CSL 2010}, LNCS 6247, pages 454--468. Springer, 2010.
+
+\bibitem{shulman-eat}
+Michael Shulman.
+\newblock Homotopy type theory should eat itself (but so far, it's too big to
+  swallow).
+\newblock Blog post, \url{https://homotopytypetheory.org/2014/03/03/hott-should-eat-itself/},
+  2014.
+
+\bibitem{ufias-sst}
+Univalent Foundations special year, IAS.
+\newblock Semi-simplicial types (open problem page).
+\newblock \url{https://ncatlab.org/ufias2012/show/Semi-simplicial+types},
+  2012--13.
+
+\bibitem{cubical-agda}
+Andrea Vezzosi, Anders Mörtberg and Andreas Abel.
+\newblock Cubical Agda: a dependently typed programming language with
+  univalence and higher inductive types.
+\newblock \emph{Journal of Functional Programming}, 31:e8, 2021.
+\end{thebibliography}
+
+\end{document}
