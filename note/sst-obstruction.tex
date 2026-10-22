@@ -8,7 +8,13 @@
 \usepackage{xcolor}
 \usepackage[colorlinks,linkcolor=black,citecolor=black,urlcolor=blue!60!black]{hyperref}
 
-\setmonofont{JuliaMono}[Scale=0.82]
+% fonts are loaded by file name (as required by arXiv's XeLaTeX setup)
+\setmainfont{lmroman10-regular.otf}[BoldFont=lmroman10-bold.otf,ItalicFont=lmroman10-italic.otf,
+  BoldItalicFont=lmroman10-bolditalic.otf,SlantedFont=lmromanslant10-regular.otf]
+\setsansfont{lmsans10-regular.otf}[BoldFont=lmsans10-bold.otf,ItalicFont=lmsans10-oblique.otf,
+  BoldItalicFont=lmsans10-boldoblique.otf]
+\setmonofont{JuliaMono-Regular.ttf}[BoldFont=JuliaMono-Bold.ttf,ItalicFont=JuliaMono-RegularItalic.ttf,
+  BoldItalicFont=JuliaMono-BoldItalic.ttf,Scale=0.82]
 \DefineVerbatimEnvironment{agda}{Verbatim}{xleftmargin=1.5em,fontsize=\small}
 \newcommand{\ag}[1]{\texttt{\detokenize{#1}}}
 \newcommand{\repourl}{https://github.com/txa/sst-new}
@@ -19,8 +25,10 @@
 
 \title{Any colour you like, as long as it's UIP\\[0.5ex]
 \large Semi-simplicial types from weakenings and thinnings}
-\author{Thorsten Altenkirch}
-\date{Draft, October 2026}
+\author{Thorsten Altenkirch\\[0.5ex]
+\small University of Nottingham, United Kingdom\\
+\small\href{mailto:Thorsten.Altenkirch@nottingham.ac.uk}{\ag{Thorsten.Altenkirch@nottingham.ac.uk}}}
+\date{October 2026}
 
 \begin{document}
 \maketitle
@@ -31,13 +39,19 @@ theory by first defining a small type theory whose contexts are exactly the
 data of semi-simplicial types, constructing $\mathrm{SST}\,n$ uniformly in that
 syntax, and then interpreting the syntax in the universe. The syntax can be
 defined without any truncation and without K, and the construction of
-$\mathrm{SST}\,n$ goes through. The interpretation does not: it needs
-equations to hold definitionally which only hold propositionally, and
-patching this with transports needs uniqueness of identity proofs for the
-semantic types. Moving the problem into the syntax, by making composition a
-constructor, does not remove it either: it reappears as a coherence problem in
-the syntax. Fording the HIIT, with conditional rules, makes the syntax
-provably a set, but the conditional rules in turn force UIP in any model. The Agda development accompanying this note is in the repository
+$\mathrm{SST}\,n$ goes through. The naive interpretation does not: it
+transports along the semantic images of equations that hold only
+propositionally, and making these transports agree needs uniqueness of
+identity proofs (UIP) for the semantic types. Moving the problem into the
+syntax, by making composition a constructor of a higher inductive-inductive
+type (HIIT), does not remove it either: it
+reappears as a coherence problem in the syntax. Fording the HIIT (storing
+equations instead of computed indices), with conditional rules, makes the
+syntax provably a set. This is UIP for the
+syntax, obtained by encode-decode, and it does not by itself restrict the
+semantics; but the naive interpretation of the conditional rules again needs
+UIP for the semantic types. A semantics into groupoids that avoids UIP will be
+discussed in a separate note. The Agda development accompanying this note is in the repository
 \href{\repourl}{\ag{github.com/txa/sst-new}}.
 \end{abstract}
 
@@ -291,8 +305,14 @@ t-k : (σ : Thin A B) → CodeV x y → Code (δ ∘ σ) δ'
   space of variables is a set (\ag{VarΣ-set}).
 \end{itemize}
 With this, \ag{t-k-cong} holds without K. This achieves the first goal: an
-\emph{untruncated} syntax, defined by induction-recursion, whose sorts are
-provably sets, all \ag{--without-K} (file \agfile{TT.agda}).
+\emph{untruncated} syntax, defined by induction-recursion without K (file
+\agfile{TT.agda}), in which stored proofs are unique. That its sorts are sets
+follows by the same encode-decode method, using that a reflexive,
+proposition-valued relation implying equality makes a type a
+set~\cite[Theorem~7.2.2]{hott-book}. For thinnings the ingredients
+(\ag{Code-refl}, \ag{Code-prop}, \ag{Code-sound}) are in \agfile{TT.agda};
+the full statement for all sorts is formalised for a variant of the syntax in
+\agfile{experiments/forded-hiit/NF2.agda} (Section~\ref{sec:fhiit}).
 
 \section{Semi-simplicial types in the syntax}
 
@@ -314,9 +334,10 @@ SST : ℕ → Con
 \end{agda}
 defined uniformly in $n$, without K (file \agfile{SSTk.agda}).
 
-\section{The interpretation, and the obstruction}\label{sec:interp}
+\section{The naive interpretation, and the obstruction}\label{sec:interp}
 
-To finish we need the standard interpretation of the syntax in the universe:
+To finish we need the standard interpretation of the syntax in the universe,
+defined by recursion on the syntax:
 \begin{agda}
 ⟦ Γ ⟧C  : Set₁                         -- nested Σ of families
 ⟦ A ⟧T  : ⟦ Γ ⟧C → Set
@@ -348,20 +369,33 @@ proofs for them (the lemma \ag{pair-irr}, equivalent to UIP). Weakening causes
 the same problem: \ag{⟦ wkTy A p ⟧T (γ , X)} is related to \ag{⟦ A ⟧T γ} only
 by a map whose naturality (\ag{unwk-nat}) holds propositionally.
 
-Put differently, the interpretation would go through if the equations
+Note what the problem is \emph{not}. The recursive equations of the syntax,
+such as \ag{δ ∘ tε = δ}, hold definitionally in the syntax, and the
+interpretation simply follows the reduced terms. Nothing requires
 \[
 \llbracket \delta\circ\sigma\rrbracket = \llbracket\delta\rrbracket\circ\llbracket\sigma\rrbracket
 \qquad\text{and}\qquad
 \llbracket \mathrm{wk}\,A\rrbracket(\gamma,X) = \llbracket A\rrbracket\,\gamma
 \]
-held definitionally. They do hold for closed terms: for every numeral $n$,
+to hold definitionally in the semantics: \ag{⟦∘⟧} and \ag{unwk-nat} are paths,
+and that is enough to define the interpretation.\footnote{An earlier draft
+of this note (in the repository) claimed that the interpretation requires these equations to hold
+definitionally. This is incorrect. Definitional equations would be sufficient
+(and for closed terms they do hold: for every numeral $n$,
 $\llbracket\mathrm{SST}\,n\rrbracket$ computes to the expected iterated
-$\Sigma$-type, and Agda checks this by \ag{refl}. They do not hold for a
-\emph{variable} $n$, and uniformity in $n$ is the whole point.
+$\Sigma$-type), but they are not necessary. What is needed is only that the
+propositional equations are coherent.} The problem is their
+\emph{coherence}: in the naive interpretation above a kept entry transports
+its value along the image of a stored equation, and composing keeps produces
+two transports that must agree. With arbitrary semantic types this is exactly
+UIP.
 
 In Agda the interpretation \agfile{Sem.agda} is K-free except for one module
-parameter, \ag{pair-irr}, which is proved with K in \agfile{SemK.agda}. So we
-still do not have a semantic encoding of SST in HoTT.
+parameter, \ag{pair-irr}, which is proved with K in \agfile{SemK.agda}. So this
+naive interpretation does not give a semantic encoding of SST in HoTT.
+Whether the coherences can instead be proved, at least when the semantic
+types are truncated, is the subject of a separate note on a groupoid
+semantics.
 
 \begin{remark}
 In two-level type theory the equations can be taken as \emph{outer}
@@ -467,11 +501,22 @@ fillable.
 path arguments of constructors and on the endpoints of path constructors,
 which is structural but is not recognised by Agda's termination checker.)
 
-\paragraph{Why the standard model fails.}
-The conditional rules are what make the syntax a set, and they are also what
-prevents us from interpreting it in the universe. In the standard model a
-keep has to transport along the interpretation of its stored path, exactly as
-in Section~\ref{sec:interp}:
+\paragraph{Set-ness does not restrict the semantics.}
+The conditional rules identify all stored paths, so they amount to UIP for
+the \emph{syntax}. This is not an extra assumption: by encode-decode
+(the codes of Section~\ref{sec:codes}, via the normal forms) the syntax is a
+set anyway. Crucially, UIP for the syntax does not restrict the semantics. An
+interpretation can first normalise, and interpret a stored path not by its
+image but by the canonical semantic path computed from the normal forms, as
+for the inductive-recursive syntax. Then the conditional rules are respected
+automatically, since they become equations between normal forms, which form a
+set.
+
+\paragraph{The naive standard model needs UIP.}
+The trouble is the naive interpretation, which interprets the HIIT as an
+algebra: composition by composition of functions, and a keep by transport
+along the interpretation of its stored path, as in
+Section~\ref{sec:interp}:
 \begin{agda}
 ⟦ t-k σ e ⟧ (a , v) = ⟦ σ ⟧ a , subst ⟦ x ⟧ (happly ⟦ e ⟧ a)⁻¹ v
 \end{agda}
@@ -495,20 +540,20 @@ $u$. The weakening rule fails even more directly. \ag{⟦ suc x p ⟧} transport
 along $\llbracket p\rrbracket$, a loop in a family of types, that is, a family of
 automorphisms of the telescope. Under univalence these exist, for instance the
 swap of the two points of an edge telescope, and they do not act trivially. So
-the conditional rules hold in a model only if all relevant identity types are
-trivial: we are back to UIP. They hold in the model of sets, where $X_0$ and
-the $X_k$ are sets. That model gives semi-simplicial \emph{sets}, which we
-could define anyway.
+the conditional rules hold in the naive model only if all relevant identity
+types are trivial: we are back to UIP, now for the semantic types. They hold
+in the model of sets, where $X_0$ and the $X_k$ are sets. That model gives
+semi-simplicial \emph{sets}, which we could define anyway.
 
 \paragraph{The trade-off.}
-Without the conditions the semantics would be fine, but then \ag{t-k∘t-k} has
-to name its right-hand side, which brings back \ag{ass} and the critical pairs.
-So the forded HIIT makes the dilemma precise. The rule that makes all ways of
-composing keeps equal, and with it the syntax a set, is the same rule that
-asks the semantics to make all ways of transporting along them equal. A
-syntax that is a set but only states the rules for the \emph{canonical} paths
-would be what we want. The canonical paths, however, are the coherences of
-composition, and stating them is the original problem.
+Without the conditions the naive semantics would be fine, but then
+\ag{t-k∘t-k} has to name its right-hand side, which brings back \ag{ass} and
+the critical pairs. With the conditions the syntax is a set, but the naive
+semantics needs UIP. An interpretation through normal forms avoids UIP in the
+syntax, but then the coherence of the semantic paths has to be proved in the
+semantics, as for the inductive-recursive syntax. Either way, the coherences
+of composition have to be supplied somewhere, and stating them is the
+original problem.
 
 \section{Single substitutions and coherent syntax}\label{sec:ssc}
 
@@ -567,10 +612,10 @@ arbitrarily many lifts, look to us like the syntactic shadow of this tower.
 \ag{ass} has been traded for exchange, but there is still a tower of
 coherences for composing non-invertible maps.
 
-\paragraph{In the semantics: conditional equations need UIP.}
+\paragraph{In the semantics: the naive model needs UIP.}
 Suppose the normalisation argument went through and the coherent syntax were
-a set. Its conditional equations would still block the standard model, for
-the reason given in Section~\ref{sec:fhiit}. In the standard model
+a set. Its conditional equations would still block the naive standard model,
+for the reason given in Section~\ref{sec:fhiit}. In the standard model
 \ag{A[p][γ⁺]} and \ag{A[γ][p]} are both families over the same context, and
 they are equal by \ag{refl}. The method for \ag{vz[γ⁺] =e vz} must work for
 every semantic path $e$ between them, that is, for every loop in a type of
@@ -578,12 +623,14 @@ families. So transport along an arbitrary such loop must fix the generic
 variable. Under univalence there are non-trivial loops, for instance an
 automorphism of a two-point telescope swapping the points. The equation forces
 them to act trivially, which brings back UIP. The conditional formulation is
-what makes ``one obvious way'' true in the syntax, and the standard model
-does not have this property.
+what makes ``one obvious way'' true in the syntax, and the naive standard
+model does not have this property. As for the Forded HIIT, this does not
+exclude an interpretation through normal forms, but that moves the
+coherences into the semantics.
 
 So the single substitution calculus moves the problem around in the same way
 as the Forded HIIT. Stating the equations conditionally makes the syntax a
-set, or is meant to, but rules out the model in the universe. Stating them
+set, or is meant to, but rules out the naive model in the universe. Stating them
 for the canonical paths keeps the model but requires the coherences of
 composition, here in the form of exchange.
 
@@ -593,7 +640,7 @@ The attempts can be summarised as follows.
 \begin{center}
 \begin{tabular}{lll}
 \toprule
-presentation & syntax & standard model\\
+presentation & syntax & naive model\\
 \midrule
 IR, index by $\delta\circ\sigma$ & transports block computation & ---\\
 IR, Forded (\agdir{withK}) & needs UIP for \ag{Thin} & needs UIP\\
@@ -606,7 +653,9 @@ SSC, conditional (\S\ref{sec:ssc}) & a set? (open) & needs UIP\\
 \end{tabular}
 \end{center}
 Each version either puts the coherence of composition into the syntax, as
-critical pairs, or into the semantics, as UIP. What is never removed is the
+critical pairs, or into the semantics, where the naive interpretation needs
+UIP to supply it. Whether the semantic coherences can be proved without UIP
+when the semantic types are truncated is the subject of a separate note. What is never removed is the
 coherence of composing \emph{non-invertible} maps, here thinnings. For
 invertible structure, identity types and J supply all coherence for free (for
 instance, coherently associative groups are exactly loop spaces). For one
@@ -677,12 +726,14 @@ Fredrik Nordvall Forsberg and Anton Setzer.
 \bibitem{rosain}
 Johann Rosain.
 \newblock Towards semi-simplicial types.
-\newblock Technical report, supervised by Ambrus Kaposi, Eötvös Loránd University, Budapest, 2026.
+\newblock Technical report, supervised by Ambrus Kaposi, 2026.
+\newblock \url{https://jrosain.gitlabpages.inria.fr/www/content/tech-reports/plr-sst-coherent-tt.pdf}.
 
 \bibitem{kaposi-xie}
 Ambrus Kaposi and Szumi Xie.
 \newblock Type theory with single substitutions.
-\newblock In \emph{LFMTP 2025}, EPTCS 431, pages 42--64, 2025.
+\newblock In \emph{Logical Frameworks and Meta-Languages: Theory and Practice (LFMTP 2025)},
+  EPTCS 431, pages 42--64, 2025. \href{https://doi.org/10.4204/EPTCS.431.4}{doi:10.4204/EPTCS.431.4}.
 
 \bibitem{acks-2ltt}
 Danil Annenkov, Paolo Capriotti, Nicolai Kraus and Christian Sattler.

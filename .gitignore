@@ -11,3 +11,6 @@ MAlonzo/
 *.fls
 *.log
 *.out
+
+# arXiv submission package (built locally)
+note/arxiv/
